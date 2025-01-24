@@ -147,6 +147,10 @@ if (WIN32)
           )
   set(TAEF_EXEC_ADAPTER "" CACHE STRING "adapter for taef exec test")
 
+  message("!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+  message("${CLANG_TEST_PARAMS}")
+  message("${TAEF_EXEC_ADAPTER}")
+  message("${CLANG_TEST_EXTRA_ARGS}")
   add_lit_target("check-clang-taef-exec" "Running lit suite hlsl execution test"
             ${CMAKE_CURRENT_SOURCE_DIR}/taef_exec
             PARAMS ${CLANG_TEST_PARAMS}
