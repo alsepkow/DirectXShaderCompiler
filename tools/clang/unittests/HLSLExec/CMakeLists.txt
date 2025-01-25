@@ -1,29 +1,5 @@
 # Copyright (C) Microsoft Corporation. All rights reserved.
 # This file is distributed under the University of Illinois Open Source License. See LICENSE.TXT for details.
-include(Nuget)
-
-message("${CMAKE_BINARY_DIR}")
-set(USE_WARP_FROM_NUGET "" CACHE STRING "use nuget warp for taef exec test")
-#if(${USE_WARP_FROM_NUGET} STREQUAL "LATEST_RELEASE" OR ${USE_WARP_FROM_NUGET} STREQUAL "LATEST_PREVIEW")
-#  message("-----------USE THE LATEST")
-#endif()
-#TODO: Make sure this is only executed for HLSL exec builds
-#TODO: Platform agnostic paths
-EnsureNugetExists(${CMAKE_BINARY_DIR}/temp/nuget.exe)
-FetchNuGetPackage(ID Microsoft.Direct3D.WARP OUTPUT_DIR ${CMAKE_BINARY_DIR}/temp)
-
-# arm64
-# win32
-# x64
-message("!!!!!!!!!!!!")
-message(${CMAKE_SYSTEM_PROCESSOR})
-# _SOURCE_DIR == "F:\hlsl.bin\Debug\bin\Microsoft.Direct3D.WARP.1.0.13
-# TOD: how to find the x64 path?
-#"F:\hlsl.bin\Debug\bin\Microsoft.Direct3D.WARP.1.0.13\build\native\bin\x64\d3d10warp.dll"
-#FetchNuGetPackage sets the below variable after installing
-message(${Microsoft.Direct3D.WARP_SOURCE_DIR})
-message("!!!!!!!!!!!!")
-
 find_package(TAEF REQUIRED)
 find_package(D3D12 REQUIRED) # Used for ExecutionTest.cpp.
 

@@ -1,26 +1,22 @@
 include_guard(GLOBAL)
 
+if(NOT DEFINED BINARY_DIR)
+    message(SEND_ERROR "Callers must provide BINARY_DIR")
+endif()
+
+if(NOT DEFINED BUILD_TYPE)
+    message(SEND_ERROR "Callers must provide BUILD_TYPE")
+endif()
+
+if(NOT DEFINED ENV{USE_WARP_FROM_NUGET})
+    message(SEND_ERROR "Callers must set a string value for the environement variable USE_WARP_FROM_NUGET value."
+            "Either 'LATEST_RELEASE' or 'LATEST_PREVIEW'")
+endif()
+
+set(USE_WARP_FROM_NUGET $ENV{USE_WARP_FROM_NUGET})
+
 # Downloads nuget.exe to the given path if it doesn't exist yet.
 function(EnsureNugetExists target_path)
-    # Download and install the credential provider if necessary.
-    # This isn't need to download from public nuget feeds. But good to keep if we want to grab a package from a private ADO feed.
-    if(NOT EXISTS $ENV{UserProfile}/.nuget/plugins/netfx/CredentialProvider.Microsoft)
-        message("EnsureNugetExists:  Need Credential Provider")
-        message(STATUS "Installing credential provider...")
-        file(DOWNLOAD 
-            https://github.com/microsoft/artifacts-credprovider/releases/download/v1.0.0/Microsoft.NuGet.CredentialProvider.zip
-            $ENV{TEMP}/credProvider.zip
-        )
-        file(ARCHIVE_EXTRACT
-            INPUT $ENV{TEMP}/credProvider.zip
-            DESTINATION $ENV{TEMP}/credProvider
-        )
-        file(COPY 
-            $ENV{TEMP}/credProvider/plugins
-            DESTINATION $ENV{UserProfile}/.nuget
-        )
-    endif()
-
     # Download the latest nuget.exe to the given path.
     if(NOT EXISTS ${target_path})
         message(STATUS "Installing nuget.exe to ${target_path}...")
@@ -33,7 +29,7 @@ endfunction()
 
 # Downloads nuget.exe to the given path if it doesn't exist yet.
 function(GetNuGetPackageLatestVersion)
-    set(params NAME ID SOURCE OUTPUT_DIR OUTPUT_VARIABLE)
+    set(params NAME ID SOURCE OUTPUT_DIR OUTPUT_VARIABLE PREVIEW)
     cmake_parse_arguments(PARSE_ARGV 0 ARG "" "${params}" "")
 
     if(NOT ARG_OUTPUT_DIR)
@@ -43,29 +39,33 @@ function(GetNuGetPackageLatestVersion)
     set(nuget_exe_path "${ARG_OUTPUT_DIR}\\nuget.exe install")
     EnsureNugetExists(${nuget_exe_path})
 
-    message("LATEST VERSION!")
-
     if (${ARG_ID}_LATEST_VERSION)
-        message("Latest version TRUE")
         set(${ARG_OUTPUT_VARIABLE} ${${ARG_ID}_LATEST_VERSION} PARENT_SCOPE)
     else()
-        message("Latest version FALSE")
         if(NOT ARG_SOURCE)
             set(ARG_SOURCE https://api.nuget.org/v3/index.json)
         endif()
 
-        message("Begin execute_process ${ARG_ID}")
-        message("NUGET EXE ${nuget_exe_path}")
-        message("SOURCE ${ARG_SOURCE}")
+        if(NOT ARG_PREVIEW)
+            set(ARG_PREVIEW OFF)
+        endif()
+
+        if(ARG_PREVIEW)
+            # Note that '-Prerelease' will only return a Prerelease package if it is also the latest
+            # That is, if you just ran with this on all the time you would get the latest package.
+            message("Will add '-Prelease' to nuget list command")
+            set(prerelease "-Prerelease")
+        endif()
+
         execute_process(
             COMMAND ${nuget_exe_path} 
-            list "Microsoft.Direct3D.WARP"
+            list ${ARG_ID}
             -Source ${ARG_SOURCE}
+            ${prerelease}
             RESULT_VARIABLE result
             OUTPUT_VARIABLE nuget_list_output
             OUTPUT_STRIP_TRAILING_WHITESPACE
         )
-        message("End execute_process")
 
         if(NOT ${result} STREQUAL "0")
             message(FATAL_ERROR "NuGet failed to find latest version of package ${ARG_ID} with exit code ${result}.")
@@ -86,6 +86,8 @@ function(GetNuGetPackageLatestVersion)
             message(FATAL_ERROR "NuGet failed to find latest version of package ${ARG_ID}.")
         endif()
 
+        message("Nuget found version:${nuget_version} for ${ARG_ID}")
+
         # Save output variable and cache the result so subsequent calls to the version-unspecified package 
         # are faster.
         set(${ARG_OUTPUT_VARIABLE} ${nuget_version} PARENT_SCOPE)
@@ -93,21 +95,18 @@ function(GetNuGetPackageLatestVersion)
     endif()
 endfunction()
 
-# Installs a NuGet package under WAI_PACKAGE_CACHE. This is mainly useful for internal feeds that
-# require authentication; prefer using direct downloads (e.g. FetchContent_Declare or CPMAddPackage) 
-# when possible. Example:
+# Installs a NuGet package under OUTPUT_DIR.
 #
 # FetchNuGetPackage(
-#     NAME dxc
-#     ID DirectML.Dxc
-#     VERSION 1.5.2010
-#     SOURCE https://pkgs.dev.azure.com/microsoft/WindowsAI/_packaging/WindowsAI/nuget/v3/index.json
+#     ID Microsoft.Direct3D.WARP
+#     VERSION 1.0.13
+#     SOURCE https://api.nuget.org/v3/index.json
 # )
 #
-# This functions sets a variable <name>_SOURCE_DIR (e.g. dxc_SOURCE_DIR in above example) to the 
+# This functions sets a variable <name>_SOURCE_DIR (e.g. Microsoft.Direct3D.WARP_SOURCE_DIR in above example) to the 
 # extract NuGet package contents.
 function(FetchNuGetPackage)
-    set(params NAME ID VERSION SOURCE OUTPUT_DIR)
+    set(params NAME ID VERSION SOURCE OUTPUT_DIR RELEASE_TYPE)
     cmake_parse_arguments(PARSE_ARGV 0 ARG "" "${params}" "")
 
     # The NAME parameter is optional: if it's not set then the package ID is used as the name. The 
@@ -118,7 +117,7 @@ function(FetchNuGetPackage)
     endif()
 
     if(NOT ARG_OUTPUT_DIR)
-        set(ARG_OUTPUT_DIR ${CMAKE_BINARY_DIR}/temp)
+        set(ARG_OUTPUT_DIR ${BINARY_DIR}/temp)
     endif()
     
     set(nuget_exe_path ${ARG_OUTPUT_DIR}/nuget.exe)
@@ -127,10 +126,22 @@ function(FetchNuGetPackage)
         set(ARG_SOURCE https://api.nuget.org/v3/index.json)
     endif()
 
+    if(NOT ARG_RELEASE_TYPE)
+        set(ARG_RELEASE_TYPE "LATEST_RELEASE")
+    endif()
+
+    set(PREVIEW OFF)
+    
+    if(${ARG_RELEASE_TYPE} STREQUAL "LATEST_PREVIEW")
+        set(PREVIEW ON)
+    endif()
+
+    # Default to latest version
     if(NOT ARG_VERSION)
         GetNuGetPackageLatestVersion(
             ID ${ARG_ID} 
             SOURCE ${ARG_SOURCE} 
+            PREVIEW ${PREVIEW}
             OUTPUT_DIR ${ARG_OUTPUT_DIR} 
             OUTPUT_VARIABLE ARG_VERSION
         )
@@ -181,12 +192,40 @@ function(FetchNuGetPackage)
     # Set output variable. The NAME parameter is optional: if it's not set then the package ID is used as the
     # name. The reason for having a separate NAME is for packages whose IDs change (e.g. GDK) so that callers
     # can use a fixed name in dependents. Example, targets can reference gdk_SOURCE_DIR with the snippet below
-    # instead of having to reference Microsoft.GDK.Xbox.220300_SOURCE_DIR.
+    # instead of having to reference Microsoft.GDK.PC.230300_SOURCE_DIR.
     #
     # FetchNuGetPackage(
     #     NAME gdk
-    #     ID Microsoft.GDK.Xbox.220300
-    #     VERSION 10.0.22000.1985-220112-2100.xb-gdk-2110co
+    #     ID Microsoft.GDK.PC.220300
+    #     VERSION 10.0.22621.3049
     # )
     set(${ARG_NAME}_SOURCE_DIR ${ARG_OUTPUT_DIR}/${ARG_ID}.${ARG_VERSION} PARENT_SCOPE)
 endfunction()
+
+message("USE_WARP_FROM_NUGET: ${USE_WARP_FROM_NUGET}")
+if(${USE_WARP_FROM_NUGET} STREQUAL "LATEST_RELEASE" OR ${USE_WARP_FROM_NUGET} STREQUAL "LATEST_PREVIEW")
+
+  message("Fetching warp from nuget")
+
+  FetchNuGetPackage(ID Microsoft.Direct3D.WARP OUTPUT_DIR ${BINARY_DIR}/temp RELEASE_TYPE ${USE_WARP_FROM_NUGET})
+
+  if(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "AMD64")
+    set(ARCH "x64")
+  endif()
+  if(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "X86")
+    set(ARCH "win32")
+  endif()
+  if(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "ARM64")
+    set(ARCH "arm64")
+  endif()
+
+  set(WARP_SOURCE_PATH "${Microsoft.Direct3D.WARP_SOURCE_DIR}/build/native/bin/${ARCH}")
+  set(WARP_DEST_PATH "${BINARY_DIR}/${BUILD_TYPE}/bin/")
+  message("Copying d3d10warp.dll and d3d10warp.pdb \n"
+           "  from:  ${WARP_SOURCE_PATH}\n"
+           "  to: ${WARP_DEST_PATH}")
+  file(COPY "${WARP_SOURCE_PATH}/d3d10warp.dll" 
+       DESTINATION "${WARP_DEST_PATH}")
+  file(COPY "${WARP_SOURCE_PATH}/d3d10warp.pdb" 
+       DESTINATION "${WARP_DEST_PATH}")
+endif()
