@@ -7524,4 +7524,178 @@
             </Parameter>
         </Row>
     </Table>
+    <Table Id="LongVector_BinaryOp_Table">
+    <ParameterTypes>
+        <ParameterType Name="ShaderOp.Target">String</ParameterType>
+        <ParameterType Name="ShaderOp.Arguments">String</ParameterType>
+        <ParameterType Name="ShaderOp.Text">String</ParameterType>
+        <ParameterType Name="Validation.Type">String</ParameterType>
+        <ParameterType Name="Validation.Tolerance">double</ParameterType>
+        <ParameterType Array="true" Name="Validation.VecInput1">String</ParameterType>
+        <ParameterType Array="true" Name="Validation.VecInput2">String</ParameterType>
+        <ParameterType Array="true" Name="Validation.ScalarInput">String</ParameterType>
+        <ParameterType Array="true" Name="Validation.VecExpected">String</ParameterType>
+    </ParameterTypes>
+    <Row Name="LongVector_Scalar_Multiply">
+        <Parameter Name="Validation.Type">ulp</Parameter>
+        <Parameter Name="Validation.Tolerance">1</Parameter>
+        <Parameter Name="ShaderOp.Text"> 
+            template&lt;typename T&gt;
+            struct SLongVecBinaryOp{
+               T scalarInput;
+               vector&lt;T, 4&gt; vecInput1;
+               vector&lt;T, 4&gt; vecInput2;
+               vector&lt;T, 4&gt; vecOutput;
+            };
+            RWStructuredBuffer&lt;SLongVecBinaryOp&gt; g_buf : register(u0);
+            [numthreads(8,8,1)]
+            void main(uint GI : SV_GroupIndex) {
+                SLongVecBinaryOp l = g_buf[GI];
+                l.vecOutput = l.vecInput1 * l.scalarInput;
+                g_buf[GI] = l;
+            };</Parameter>
+        <Parameter Name="ShaderOp.Target">cs_6_0</Parameter>
+        <Parameter Name="Validation.VecInput1">
+            <Value>1,1,1,1</Value>
+            <Value>2,2,2,2</Value>
+        </Parameter>
+        <Parameter Name="Validation.ScalarInput">
+            <Value>5</Value>
+            <Value>5</Value>
+        </Parameter>
+        <Parameter Name="Validation.VecExpected">
+            <Value>5,5,5,5</Value>
+            <Value>10,10,10,10</Value>
+        </Parameter>
+    </Row>
+    <Row Name="LongVector_Scalar_Add">
+        <Parameter Name="Validation.Type">ulp</Parameter>
+        <Parameter Name="Validation.Tolerance">1</Parameter>
+        <Parameter Name="ShaderOp.Text"> 
+            template&lt;typename T&gt;
+            struct SLongVecBinaryOp{
+               T scalarInput;
+               vector&lt;T, 4&gt; vecInput1;
+               vector&lt;T, 4&gt; vecInput2;
+               vector&lt;T, 4&gt; vecOutput;
+            };
+            RWStructuredBuffer&lt;SLongVecBinaryOp&t;TYPE&gt; &gt; g_buf : register(u0);
+            [numthreads(8,8,1)]
+            void main(uint GI : SV_GroupIndex) {
+                SLongVecBinaryOp l = g_buf[GI];
+                l.vecOutput = l.vecInput1 + l.scalarInput;
+                g_buf[GI] = l;
+            };</Parameter>
+        <Parameter Name="ShaderOp.Target">cs_6_0</Parameter>
+        <Parameter Name="Validation.VecInput1">
+            <Value>1,1,1,1</Value>
+            <Value>2,2,2,2</Value>
+        </Parameter>
+        <Parameter Name="Validation.ScalarInput">
+            <Value>5</Value>
+            <Value>5</Value>
+        </Parameter>
+        <Parameter Name="Validation.VecExpected">
+            <Value>6,6,6,6</Value>
+            <Value>7,7,7,7</Value>
+        </Parameter>
+    </Row>
+    <Row Name="LongVector_ComponentWise_Multiply">
+        <Parameter Name="Validation.Type">ulp</Parameter>
+        <Parameter Name="Validation.Tolerance">1</Parameter>
+        <Parameter Name="ShaderOp.Text"> 
+            template&lt;typename T&gt;
+            struct SLongVecBinaryOp{
+               T scalarInput;
+               vector&lt;T, 4&gt; vecInput1;
+               vector&lt;T, 4&gt; vecInput2;
+               vector&lt;T, 4&gt; vecOutput;
+            };
+            RWStructuredBuffer&lt;SLongVecBinaryOp&t;TYPE&gt; &gt; g_buf : register(u0);
+            [numthreads(8,8,1)]
+            void main(uint GI : SV_GroupIndex) {
+                SLongVecBinaryOp l = g_buf[GI];
+                l.vecOutput = l.vecInput1 * l.vecInput2;
+                g_buf[GI] = l;
+            };</Parameter>
+        <Parameter Name="ShaderOp.Target">cs_6_0</Parameter>
+        <Parameter Name="Validation.VecInput1">
+            <Value>1,1,1,1</Value>
+            <Value>2,2,2,2</Value>
+        </Parameter>
+        <Parameter Name="Validation.VecInput2">
+            <Value>1,1,1,1</Value>
+            <Value>2,2,2,2</Value>
+        </Parameter>
+        <Parameter Name="Validation.VecExpected">
+            <Value>1,1,1,1</Value>
+            <Value>4,4,4,4</Value>
+        </Parameter>
+    </Row>
+    <Row Name="LongVector_ComponentWise_Add">
+        <Parameter Name="Validation.Type">ulp</Parameter>
+        <Parameter Name="Validation.Tolerance">1</Parameter>
+        <Parameter Name="ShaderOp.Text"> 
+            template&lt;typename T&gt;
+            struct SLongVecBinaryOp{
+               T scalarInput;
+               vector&lt;T, 4&gt; vecInput1;
+               vector&lt;T, 4&gt; vecInput2;
+               vector&lt;T, 4&gt; vecOutput;
+            };
+            RWStructuredBuffer&lt;SLongVecBinaryOp&t;TYPE&gt; &gt; g_buf : register(u0);
+            [numthreads(8,8,1)]
+            void main(uint GI : SV_GroupIndex) {
+                SLongVecBinaryOp l = g_buf[GI];
+                l.vecOutput = l.vecInput1 + l.vecInput2;
+                g_buf[GI] = l;
+            };</Parameter>
+        <Parameter Name="ShaderOp.Target">cs_6_0</Parameter>
+        <Parameter Name="Validation.VecInput1">
+            <Value>1,1,1,1</Value>
+            <Value>2,2,2,2</Value>
+        </Parameter>
+        <Parameter Name="Validation.VecInput2">
+            <Value>1,1,1,1</Value>
+            <Value>2,2,2,2</Value>
+        </Parameter>
+        <Parameter Name="Validation.VecExpected">
+            <Value>1,1,1,1</Value>
+            <Value>4,4,4,4</Value>
+        </Parameter>
+    </Row>
+    </Table>
+    <Table Id="LongVector_InitializeOpTable">
+    <ParameterTypes>
+        <ParameterType Name="ShaderOp.Target">String</ParameterType>
+        <ParameterType Name="ShaderOp.Arguments">String</ParameterType>
+        <ParameterType Name="ShaderOp.Text">String</ParameterType>
+        <ParameterType Array="true" Name="Validation.VecInput1">String</ParameterType>
+        <ParameterType Array="true" Name="Validation.VecExpected">String</ParameterType>
+    </ParameterTypes>
+    <Row Name="LongVector_Initialize_With_Another_Vector">
+        <Parameter Name="ShaderOp.Text"> 
+            template&lt;typename T&gt;
+            struct SLongVecInitializeOp{
+               vector&lt;T, 4&gt; vecInput1;
+               vector&lt;T, 4&gt; vecOutput;
+            };
+            RWStructuredBuffer&lt;SLongVecInitializeOp&gt; g_buf : register(u0);
+            [numthreads(8,8,1)]
+            void main(uint GI : SV_GroupIndex) {
+                SLongVecInitializeOp l = g_buf[GI];
+                vector&lt;T, 4&gt; vec = l.vecInput1;
+                l.vecOutput = vec;
+                g_buf[GI] = l;
+            };</Parameter>
+        <Parameter Name="ShaderOp.Target">cs_6_0</Parameter>
+        <Parameter Name="Validation.VecInput1">
+            <Value>1,1,1,1</Value>
+            <Value>2,2,2,2</Value>
+        </Parameter>
+        <Parameter Name="Validation.VecExpected">
+            <Value>1,1,1,1</Value>
+            <Value>2,2,2,2</Value>
+        </Parameter>
+    </Row>
 </Data>
