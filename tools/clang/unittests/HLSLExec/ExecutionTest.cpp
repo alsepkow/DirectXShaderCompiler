@@ -32,7 +32,6 @@
 #include <Shlwapi.h>
 #include <atlcoll.h>
 #include <locale>
-#include <codecvt>
 #include <algorithm>
 #include <type_traits>
 #include <bitset>
@@ -507,9 +506,9 @@ public:
                        L"Table:ShaderOpArithTable.xml#LongVector_BinaryOpTable")
   END_TEST_METHOD()
 
-  BEGIN_TEST_METHOD(LongVector_InitializeOpTest)
+  BEGIN_TEST_METHOD(LongVector_UnaryOpTest)
   TEST_METHOD_PROPERTY(L"DataSource",
-                       L"Table:ShaderOpArithTable.xml#LongVector_InitializeOpTable")
+                       L"Table:ShaderOpArithTable.xml#LongVector_UnaryOpTable")
   END_TEST_METHOD()
 
   dxc::DxcDllSupport m_support;
@@ -6481,7 +6480,17 @@ static TableParameter LongVecBinaryOpParameters[] = {
   {L"Validation.VecInput2", TableParameter::STRING_TABLE, false},
   {L"Validation.ScalarInput", TableParameter::STRING_TABLE, false},
   {L"Validation.VecExpected", TableParameter::STRING_TABLE, true},
-  {L"Validation.Type", TableParameter::STRING, true},
+  {L"Validation.Type", TableParameter::STRING, false},
+  {L"Validation.Tolerance", TableParameter::DOUBLE, true},
+};
+
+static TableParameter LongVecUnaryOpParameters[] = {
+  {L"ShaderOp.Target", TableParameter::STRING, true},
+  {L"ShaderOp.Text", TableParameter::STRING, true},
+  {L"Validation.VecInput1", TableParameter::STRING_TABLE, true},
+  {L"Validation.ClampArgC", TableParameter::STRING_TABLE, false},
+  {L"Validation.ClampArgT", TableParameter::STRING_TABLE, false},
+  {L"Validation.VecExpected", TableParameter::STRING_TABLE, true},
   {L"Validation.Tolerance", TableParameter::DOUBLE, true},
 };
 
@@ -11128,46 +11137,61 @@ TEST_F(ExecutionTest, PackUnpackTest) {
   }
 }
 
+// TODOLongVec : Need to change the members to vectors. But when I did that the
+// copy logic to read back from the shader buffer fails. Needs to fix that
+// before checking in PR.
 // SLongVecBinaryOp is used in ShaderOpArithTable.xml. The shader program
 // uses the struct defintion to read from the input global buffer.
 template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
 struct SLongVecBinaryOp {
-  float scalarInput;
+  T scalarInput;
   std::array<T, 4> vecInput1;
   std::array<T, 4> vecInput2;
   std::array<T, 4> vecOutput;
 };
 
+// vec1 == Expected vector
+// vec2 == Actual vector
 template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-bool DoVectorsMatch(const std::vector<T>& vec1, const std::vector<T>& vec2) {
+bool DoVectorsMatch(const std::vector<T>& vec1, const std::vector<T>& vec2, double tolerance) {
     // Ensure both vectors have the same size
     if (vec1.size() != vec2.size()) {
         VERIFY_IS_TRUE(false, L"Vectors are of different sizes!");
         return false;
     }
     
-    bool match = true;
+    bool vectorsMatch = true;
 
     // Stash mismatched indexes for easy failure logging later
     std::vector<size_t> mismatchedIndexes;
     for (size_t i = 0; i < vec1.size(); ++i) {
-        if (vec1[i] != vec2[i]) {
-          match = true;
-          mismatchedIndexes.push_back(i);
+        if (tolerance == 0)
+          if(vec1[i] != vec2[i]) {
+            vectorsMatch = false;
+            mismatchedIndexes.push_back(i);
+        }
+        else
+        {
+          const T diff = std::abs(vec1[i] - vec2[i]);
+          if (diff > tolerance) {
+            vectorsMatch = false;
+            mismatchedIndexes.push_back(i);
+          }
         }
     }
 
     // Print the mismatched indexes and their corresponding elements
     if (!mismatchedIndexes.empty()) {
         for (size_t index : mismatchedIndexes) {
-          LogErrorFmt(L"Mismatch at Index %zu: expected %S, got %S",
-            index,
-            std::to_wstring(vec1[index]),
-            std::to_wstring(vec2[index]));
+          std::wstringstream wss(L"");
+          wss << L"Mismatch at Index: " << index;
+          wss << L" Expected Value:" << vec1[index];
+          wss << L" Actual Value:" << vec2[index];
+          WEX::Logging::Log::Error(wss.str().c_str());
         }
     }
 
-    return failed;
+    return vectorsMatch;
 }
 
 template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
@@ -11225,7 +11249,7 @@ TEST_F(ExecutionTest, LongVector_BinaryOpTest) {
   WEX::TestExecution::SetVerifyOutput verifySettings(
       WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
 
-  // TODOLONGVEC: This seems frivelous as the device we target is created
+  // TODOLONGVEC: This seems frivolous as the device we target is created
   // elsewhere. There is no guarantee that we're checking the right device here.
   CComPtr<ID3D12Device> pDevice;
   if (!CreateDevice(&pDevice, D3D_SHADER_MODEL_6_9)) {
@@ -11233,7 +11257,8 @@ TEST_F(ExecutionTest, LongVector_BinaryOpTest) {
     // But for exectests we can just return and skip. Will need to add a
     // mechanism to faciliate that behavior in a good way that enforces it to
     // always be on in OS builds.
-    WEX::Logging::Log::Warning("Device does not support 6.9 shader model!!!");
+    //WEX::Logging::Log::Warning("Device does not support 6.9 shader model!!!");
+    WEX::Logging::Log::Comment("Device does not support 6.9 shader model!!!");
   }
 
   // TableParameterHanlder is a helper that parses the xml file linked
@@ -11260,14 +11285,13 @@ TEST_F(ExecutionTest, LongVector_BinaryOpTest) {
 
   std::vector<WEX::Common::String> *Validation_VecExpected =
   &(handler.GetTableParamByName(L"Validation.VecExpected")->m_StringTable);
-  auto expected = parseStringsToNumbers<float>(Validation_VecExpected);
+  auto vecExpected = parseStringsToNumbers<float>(Validation_VecExpected);
 
   std::vector<WEX::Common::String> *Scalar_Inputs =
   &handler.GetTableParamByName(L"Validation.ScalarInput")->m_StringTable;
   auto scalarInputs = parseStringsToNumbers<float>(Scalar_Inputs);
 
-  LPCWSTR Validation_Type =
-  handler.GetTableParamByName(L"Validation.Type")->m_str;
+  // double is plenty of room for tolerance range
   const double Validation_Tolerance =
   handler.GetTableParamByName(L"Validation.Tolerance")->m_double;
 
@@ -11286,80 +11310,71 @@ TEST_F(ExecutionTest, LongVector_BinaryOpTest) {
   CComPtr<IStream> pStream;
   ReadHlslDataIntoNewStream(L"ShaderOpArith.xml", &pStream);
 
+  const size_t numElementsPerVector = vecInput1[0].size();
+
+  // Create the compiler args outside of the lambda so the string pointer stays
+  // valid for the lifespan of the test method. Really should just use something
+  // like a std::shared_ptr<std::string>
+  char compilerOptions[256];
+  std::string type("float");
+  VERIFY_IS_TRUE(sprintf_s(compilerOptions, sizeof(compilerOptions),
+                           "-DTYPE=%s -D NUM=%zu", type.c_str(), numElementsPerVector) != -1);
+
   std::shared_ptr<ShaderOpTestResult> test = RunShaderOpTest(
     pDevice, m_support, pStream, "LongVecBinaryOp", 
     // this callback is called when the test is creating the resource to run
     // the test. We use it to override the values set on the st:ShaderOp from
     // ShaderOpArith.xml. We update with values defined in ShadoerOpArithTable.xml.
     [&](LPCSTR Name, std::vector<BYTE> &Data, st::ShaderOp *pShaderOp) {
-      WEX::Logging::Log::Comment(L"Running LongVecBinaryOp test Callback object");
-      VERIFY_IS_TRUE(0 == _stricmp(Name, "SLongVecBinaryOp"));
-      size_t size = sizeof(SLongVecBinaryOp<float>) * inputVectorCount;
+      LogCommentFmt(L"RunShaderOpTest CB. Shader Name: %S", Name);
+      VERIFY_IS_TRUE(0 == _stricmp(Name, "SLongVecBinaryOp<T>"));
+
+      const size_t size = sizeof(SLongVecBinaryOp<float>) * inputVectorCount;
       Data.resize(size);
+
+      // Treat the data as an array of SLongVecBinaryOp<T> structs.
+      // One struct for each set of <value> tags in the  ShaderOpArithTable.xml
+      // A set of value tags is the corresponding <value> tags across <Parameters>
       SLongVecBinaryOp<float> *pPrimitives = (SLongVecBinaryOp<float> *)Data.data();
-      for(auto &v : vecInput1) {
-        v[0] = 2;
-      }
+
       for (size_t i = 0; i < inputVectorCount ; ++i) {
-        // TODOLONGVEC : this needs to be dynamic/generic. Used a vector? And
-        // template this function?
-        std::array<float, 4> vecInput11;
-        std::array<float, 4> vecInput22;
         SLongVecBinaryOp<float> *p = &pPrimitives[i];
 
-        // Input vector is required.
-        ParseDataToVectorFloat((*Validation_VecInput1)[i], (float*)&vecInput11, 4);
-        p->vecInput1 = vecInput11;
+        std::copy(vecInput1[i].begin(), vecInput1[i].end(), p->vecInput1.begin());
 
-        if(hasScalarInput)
+        if(!vecInput2.empty())
         {
+          std::copy(vecInput2[i].begin(), vecInput2[i].end(), p->vecInput2.begin());
+        }
+        else if(!scalarInputs.empty())
+        {
+          VERIFY_IS_TRUE(scalarInputs[i].size() == 1, L"Scalar input vector must have exactly one element.");
           p->scalarInput = scalarInputs[i][0];
         }
-        else
-        {
-          ParseDataToVectorFloat((*Validation_VecInput2)[i], (float*)&vecInput22, 4);
-          p->vecInput2 = vecInput22;
-        }
-
       }
 
+      // Override the shader name and text (source hlsl) with the values from ShaderOpArithTable.xml
       pShaderOp->Shaders.at(0).Target = Target.m_psz;
       pShaderOp->Shaders.at(0).Text = Text.m_psz;
-      pShaderOp->Shaders.at(0).Arguments = "-enable-16bit-types -DTYPE=float";
+
+      // And override the compiler arguments. We pass in the element
+      // type for the vectors and their size.
+      pShaderOp->Shaders.at(0).Arguments = compilerOptions;
     }
   );
 
   // Map the data from GPU to CPU memory so we can verify our expectations.
   MappedData data;
-  test->Test->GetReadBackData("SLongVecBinaryOp", &data);
-  Validation_Type = L"BLARG";
-
-  while(true)
-  {
-    size_t t = expected.size();
-    if(t > 0)
-    {
-
-    }
-  }
-
+  test->Test->GetReadBackData("SLongVecBinaryOp<T>", &data);
 
   // Cast the buffer back into an array of the structs we expect.
   SLongVecBinaryOp<float> *pPrimitive = (SLongVecBinaryOp<float>*)data.data();
   for(size_t i = 0; i < inputVectorCount; i++)
   {
     SLongVecBinaryOp<float> *p = &pPrimitive[i];
-    std::array<float, 4> vecExpected = p->vecInput1;
-    std::array<float, 4> vecOutput = p->vecOutput;
+    std::vector<float> vecOutput(p->vecOutput.begin(), p->vecOutput.end());
 
-    if(Validation_VecExpected->size() < 0 || Validation_Tolerance == 0.0f)
-    {
-      ParseDataToVectorFloat((*Validation_VecExpected)[i], (float*)&vecExpected, 4);
-    }
-    //if(!std::equal(vecExpected.begin(), vecExpected.end(), vecOutput.begin(), [&](float a, float b) { return fabs(a - b) < Validation_Tolerance; }))
-    //{
-    //  LogErrorFmt(L"LongVecBinaryOp: element #%u, input1 = %6.8f, input2 = %6.8f, output = %6.8f, expected = %6.8f", i, p->vecInput1[0], p->vecInput2[0], p->vecOutput[0], vecExpected[0]);
-    //}
+    VERIFY_SUCCEEDED(DoVectorsMatch<float>(vecOutput, vecExpected[i], Validation_Tolerance));
   }
 }
 
@@ -11368,9 +11383,24 @@ void ExecutionTest::LongVectorBinaryOpTestBase() {
   WEX::TestExecution::SetVerifyOutput verifySettings(
       WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
 
-  WEX::Logging::Log::Comment(L"Running LongVectorTest");
+      VERIFY_IS_TRUE(false, L"TODO: Implement Template version");
+}
 
-  // TODOLONGVEC: This seems frivelous as the device we target is created
+// TODOLONGVEC: need to update this to std::vector
+template <typename T>
+struct SLongVecUnaryOp {
+  T clampArgC;
+  T clampArgT;
+  std::array<T, 4> vecInput1;
+  std::array<T, 4> vecOutput;
+};
+
+TEST_F(ExecutionTest, LongVector_UnaryOpTest) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+      WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+
+      
+  // TODOLONGVEC: This seems frivolous as the device we target is created
   // elsewhere. There is no guarantee that we're checking the right device here.
   CComPtr<ID3D12Device> pDevice;
   if (!CreateDevice(&pDevice, D3D_SHADER_MODEL_6_9)) {
@@ -11378,7 +11408,8 @@ void ExecutionTest::LongVectorBinaryOpTestBase() {
     // But for exectests we can just return and skip. Will need to add a
     // mechanism to faciliate that behavior in a good way that enforces it to
     // always be on in OS builds.
-    WEX::Logging::Log::Warning("Device does not support 6.9 shader model!!!");
+    //WEX::Logging::Log::Warning("Device does not support 6.9 shader model!!!");
+    WEX::Logging::Log::Comment("Device does not support 6.9 shader model!!!");
   }
 
   // TableParameterHanlder is a helper that parses the xml file linked
@@ -11386,8 +11417,8 @@ void ExecutionTest::LongVectorBinaryOpTestBase() {
   // ShaderOpArithTable.xml. And more specifically, it looks for the table ID
   // LongVectorTestTable_ScalarTests as defined in the TAEF boilerplate for this
   // test method.
-  const int tableSize = sizeof(LongVecBinaryOpParameters) / sizeof(TableParameter);
-  TableParameterHandler handler(LongVecBinaryOpParameters, tableSize);
+  const int tableSize = sizeof(LongVecUnaryOpParameters) / sizeof(TableParameter);
+  TableParameterHandler handler(LongVecUnaryOpParameters, tableSize);
  
   CW2A Target(handler.GetTableParamByName(L"ShaderOp.Target")->m_str);
   CW2A Text(handler.GetTableParamByName(L"ShaderOp.Text")->m_str);
@@ -11397,122 +11428,96 @@ void ExecutionTest::LongVectorBinaryOpTestBase() {
   // row. Multiple value tags mean a longer vector.
   std::vector<WEX::Common::String> *Validation_VecInput1 =
   &(handler.GetTableParamByName(L"Validation.VecInput1")->m_StringTable);
-  auto vecInput1 = parseStringsToNumbers<T>(Validation_VecInput1);
-
-  std::vector<WEX::Common::String> *Validation_VecInput2 =
-  &(handler.GetTableParamByName(L"Validation.VecInput2")->m_StringTable);
-  auto vecInput2 = parseStringsToNumbers<T>(Validation_VecInput2);
+  auto vecInput1 = parseStringsToNumbers<float>(Validation_VecInput1);
 
   std::vector<WEX::Common::String> *Validation_VecExpected =
   &(handler.GetTableParamByName(L"Validation.VecExpected")->m_StringTable);
-  auto expected = parseStringsToNumbers<T>(Validation_VecExpected);
+  auto vecExpected = parseStringsToNumbers<float>(Validation_VecExpected);
 
-  std::vector<WEX::Common::String> *Scalar_Inputs =
-  &handler.GetTableParamByName(L"Validation.ScalarInput")->m_StringTable;
-  auto scalarInputs = parseStringsToNumbers<T>(Scalar_Inputs);
+  std::vector<WEX::Common::String> *Clamp_ArgsC=
+  &handler.GetTableParamByName(L"Validation.ClampArgc")->m_StringTable;
+  auto clampArgsC = parseStringsToNumbers<float>(Clamp_ArgsC);
 
-  LPCWSTR Validation_Type =
-  handler.GetTableParamByName(L"Validation.Type")->m_str;
+  std::vector<WEX::Common::String> *Clamp_ArgsT=
+  &handler.GetTableParamByName(L"Validation.ClampArgc")->m_StringTable;
+  auto clampArgsT = parseStringsToNumbers<float>(Clamp_ArgsT);
+
+  // double is plenty of room for tolerance range
   const double Validation_Tolerance =
   handler.GetTableParamByName(L"Validation.Tolerance")->m_double;
 
   const size_t inputVectorCount = vecInput1.size();
-  const bool hasScalarInput = scalarInputs.size() > 0;
-  const bool hasVecInput2 = vecInput2.size() > 0;
-  VERIFY_IS_FALSE(hasScalarInput == hasVecInput2, L"Expecting either a vector and vector op or a vector and scalar op");
 
-  // The two operand vectors must be the same size.
-  VERIFY_IS_TRUE(inputVectorCount == vecInput2.size() || inputVectorCount == scalarInputs.size());
-
-  // Additionally all elements (also vectors) in the vector must be the same
-  // size.
-  // TODO: Add check.
+  // TODO: Add validation that if we have one Clamp_ArgC or Clamp_ArgT then we
+  // must have the other. Or maybe add some validation based on test case name?
 
   CComPtr<IStream> pStream;
   ReadHlslDataIntoNewStream(L"ShaderOpArith.xml", &pStream);
 
+  const size_t numElementsPerVector = vecInput1[0].size();
+
+  // Create the compiler args outside of the lambda so the string pointer stays
+  // valid for the lifespan of the test method. Really should just use something
+  // like a std::shared_ptr<std::string>
+  char compilerOptions[256];
+  std::string type("float");
+  VERIFY_IS_TRUE(sprintf_s(compilerOptions, sizeof(compilerOptions),
+                           "-DTYPE=%s -D NUM=%zu", type.c_str(), numElementsPerVector) != -1);
+
   std::shared_ptr<ShaderOpTestResult> test = RunShaderOpTest(
-    pDevice, m_support, pStream, "LongVecBinaryOp", 
+    pDevice, m_support, pStream, "LongVecUnaryOp", 
     // this callback is called when the test is creating the resource to run
     // the test. We use it to override the values set on the st:ShaderOp from
     // ShaderOpArith.xml. We update with values defined in ShadoerOpArithTable.xml.
     [&](LPCSTR Name, std::vector<BYTE> &Data, st::ShaderOp *pShaderOp) {
-      WEX::Logging::Log::Comment(L"Running LongVecBinaryOp test Callback object");
-      VERIFY_IS_TRUE(0 == _stricmp(Name, "SLongVecBinaryOp"));
-      size_t size = sizeof(SLongVecBinaryOp<T>) * inputVectorCount;
+      LogCommentFmt(L"RunShaderOpTest CB. Shader Name: %S", Name);
+      VERIFY_IS_TRUE(0 == _stricmp(Name, "SLongVecUnaryOp<T>"));
+
+      const size_t size = sizeof(SLongVecUnaryOp<float>) * inputVectorCount;
       Data.resize(size);
-      SLongVecBinaryOp<T> *pPrimitives = (SLongVecBinaryOp<T> *)Data.data();
-      for(auto &v : vecInput1) {
-        v[0] = 2;
-      }
+
+      // Treat the data as an array of SLongVecUnaryOp<T> structs.
+      // One struct for each set of <value> tags in the  ShaderOpArithTable.xml
+      // A set of value tags is the corresponding <value> tags across <Parameters>
+      SLongVecUnaryOp<float> *pPrimitives = (SLongVecUnaryOp<float> *)Data.data();
+
       for (size_t i = 0; i < inputVectorCount ; ++i) {
-        // TODOLONGVEC : this needs to be dynamic/generic. Used a vector? And
-        // template this function?
-        std::array<float, 4> vecInput11;
-        std::array<float, 4> vecInput22;
-        SLongVecBinaryOp<T> *p = &pPrimitives[i];
+        SLongVecUnaryOp<float> *p = &pPrimitives[i];
 
-        // Input vector is required.
-        ParseDataToVectorFloat((*Validation_VecInput1)[i], (float*)&vecInput11, 4);
-        p->vecInput1 = vecInput11;
+        std::copy(vecInput1[i].begin(), vecInput1[i].end(), p->vecInput1.begin());
 
-        if(hasScalarInput)
+        if(!clampArgsC.empty())
         {
-          p->scalarInput = scalarInputs[i][0];
+          VERIFY_IS_TRUE(clampArgsC[i].size() == 1, L"ClampArgs vectors must have exactly one element.");
+          VERIFY_IS_TRUE(clampArgsT[i].size() == 1, L"ClampArgs vectors must have exactly one element.");
+          p->clampArgC = clampArgsC[i][0];
+          p->clampArgT = clampArgsT[i][0];
         }
-        else
-        {
-          ParseDataToVectorFloat((*Validation_VecInput2)[i], (float*)&vecInput22, 4);
-          p->vecInput2 = vecInput22;
-        }
-
       }
 
+      // Override the shader name and text (source hlsl) with the values from ShaderOpArithTable.xml
       pShaderOp->Shaders.at(0).Target = Target.m_psz;
       pShaderOp->Shaders.at(0).Text = Text.m_psz;
-      pShaderOp->Shaders.at(0).Arguments = "-enable-16bit-types -DTYPE=float";
+
+      // And override the compiler arguments. We pass in the element
+      // type for the vectors and their size.
+      pShaderOp->Shaders.at(0).Arguments = compilerOptions;
     }
   );
 
   // Map the data from GPU to CPU memory so we can verify our expectations.
   MappedData data;
-  test->Test->GetReadBackData("SLongVecBinaryOp", &data);
-  Validation_Type = L"BLARG";
-
-  while(true)
-  {
-    size_t t = expected.size();
-    if(t > 0)
-    {
-
-    }
-  }
-
+  test->Test->GetReadBackData("SLongVecUnaryOp<T>", &data);
 
   // Cast the buffer back into an array of the structs we expect.
-  SLongVecBinaryOp<T> *pPrimitive = (SLongVecBinaryOp<T>*)data.data();
+  SLongVecUnaryOp<float> *pPrimitive = (SLongVecUnaryOp<float>*)data.data();
   for(size_t i = 0; i < inputVectorCount; i++)
   {
-    SLongVecBinaryOp<T> *p = &pPrimitive[i];
-    std::array<float, 4> vecExpected = p->vecInput1;
-    std::array<float, 4> vecOutput = p->vecOutput;
+    SLongVecUnaryOp<float> *p = &pPrimitive[i];
+    std::vector<float> vecOutput(p->vecOutput.begin(), p->vecOutput.end());
 
-    if(Validation_VecExpected->size() < 0 || Validation_Tolerance == 0.0f)
-    {
-      ParseDataToVectorFloat((*Validation_VecExpected)[i], (float*)&vecExpected, 4);
-    }
-    //if(!std::equal(vecExpected.begin(), vecExpected.end(), vecOutput.begin(), [&](float a, float b) { return fabs(a - b) < Validation_Tolerance; }))
-    //{
-    //  LogErrorFmt(L"LongVecBinaryOp: element #%u, input1 = %6.8f, input2 = %6.8f, output = %6.8f, expected = %6.8f", i, p->vecInput1[0], p->vecInput2[0], p->vecOutput[0], vecExpected[0]);
-    //}
+    VERIFY_SUCCEEDED(DoVectorsMatch<float>(vecOutput, vecExpected[i], Validation_Tolerance));
   }
-}
-
-TEST_F(ExecutionTest, LongVector_InitializeOpTest) {
-  WEX::TestExecution::SetVerifyOutput verifySettings(
-      WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
-
-  VERIFY_IS_TRUE(false, L"TODO: Implement.");
 }
 
 // This test expects a <pShader> that retrieves a signal value from each of a

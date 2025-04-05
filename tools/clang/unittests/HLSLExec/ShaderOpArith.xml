@@ -3752,19 +3752,19 @@ void MSMain(uint GID : SV_GroupIndex,
 
   <ShaderOp Name="LongVecBinaryOp" CS="CS">
     <RootSignature>RootFlags(0), UAV(u0)</RootSignature>
-    <Resource Name="SLongVecBinaryOp" Dimension="BUFFER" Width="1024" Flags="ALLOW_UNORDERED_ACCESS" InitialResourceState="COPY_DEST" TransitionTo="UNORDERED_ACCESS" Init="ByName" ReadBack="true" />
+    <Resource Name="SLongVecBinaryOp&lt;T&gt;" Dimension="BUFFER" Width="1024" Flags="ALLOW_UNORDERED_ACCESS" InitialResourceState="COPY_DEST" TransitionTo="UNORDERED_ACCESS" Init="ByName" ReadBack="true" />
     <RootValues>
-      <RootValue Index="0" ResName="SLongVecBinaryOp" />
+      <RootValue Index="0" ResName="SLongVecBinaryOp&lt;T&gt;" />
     </RootValues>
     <Shader Name="CS" Target="cs_6_0">
     </Shader>
   </ShaderOp>
 
-  <ShaderOp Name="LongVecInitializeOp" CS="CS">
+  <ShaderOp Name="LongVecUnaryOp" CS="CS">
     <RootSignature>RootFlags(0), UAV(u0)</RootSignature>
-    <Resource Name="SLongVecInitializeOp" Dimension="BUFFER" Width="1024" Flags="ALLOW_UNORDERED_ACCESS" InitialResourceState="COPY_DEST" TransitionTo="UNORDERED_ACCESS" Init="ByName" ReadBack="true" />
+    <Resource Name="SLongVecUnaryOp&lt;T&gt;" Dimension="BUFFER" Width="1024" Flags="ALLOW_UNORDERED_ACCESS" InitialResourceState="COPY_DEST" TransitionTo="UNORDERED_ACCESS" Init="ByName" ReadBack="true" />
     <RootValues>
-      <RootValue Index="0" ResName="SLongVecInitializeOp" />
+      <RootValue Index="0" ResName="SLongVecUnaryOp&lt;T&gt;" />
     </RootValues>
     <Shader Name="CS" Target="cs_6_0">
     </Shader>
