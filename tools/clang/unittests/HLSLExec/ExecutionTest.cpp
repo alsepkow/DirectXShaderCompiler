@@ -36,6 +36,8 @@
 #include <type_traits>
 #include <bitset>
 #include <cmath>
+#include <random>
+#include <limits>
 
 #undef _read
 #include "dxc/Test/DxcTestUtils.h"
@@ -278,6 +280,7 @@ typedef struct D3D12_FEATURE_DATA_D3D12_OPTIONS4 {
 // Virtual class to compute the expected result given a set of inputs
 struct TableParameter;
 
+struct SLongVectorBinaryOpTestConfig; // Forward declaration
 class ExecutionTest {
 public:
   BEGIN_TEST_CLASS(ExecutionTest)
@@ -505,55 +508,84 @@ public:
                        L"Table:ShaderOpArithTable.xml#PackUnpackOpTable")
   END_TEST_METHOD()
 
-  BEGIN_TEST_METHOD(LongVector_BinaryOpTest_bool)
-  TEST_METHOD_PROPERTY(L"DataSource",
-                       L"Table:ShaderOpArithTable.xml#LongVector_BinaryOpTable")
-  END_TEST_METHOD()
-
-  BEGIN_TEST_METHOD(LongVector_BinaryOpTest_float16)
-  TEST_METHOD_PROPERTY(L"DataSource",
-                       L"Table:ShaderOpArithTable.xml#LongVector_BinaryOpTable")
-  END_TEST_METHOD()
-
-  BEGIN_TEST_METHOD(LongVector_BinaryOpTest_float32)
-  TEST_METHOD_PROPERTY(L"DataSource",
-                       L"Table:ShaderOpArithTable.xml#LongVector_BinaryOpTable")
-  END_TEST_METHOD()
-
-  BEGIN_TEST_METHOD(LongVector_BinaryOpTest_float64)
-  TEST_METHOD_PROPERTY(L"DataSource",
-                       L"Table:ShaderOpArithTable.xml#LongVector_BinaryOpTable")
-  END_TEST_METHOD()
-
-  BEGIN_TEST_METHOD(LongVector_BinaryOpTest_int16)
-  TEST_METHOD_PROPERTY(L"DataSource",
-                       L"Table:ShaderOpArithTable.xml#LongVector_BinaryOpTable")
-  END_TEST_METHOD()
+  // bool
+  TEST_METHOD(LongVector_ScalarAdd_bool)
+  TEST_METHOD(LongVector_ScalarMultilpy_bool)
+  TEST_METHOD(LongVector_Multiply_bool)
+  TEST_METHOD(LongVector_Add_bool)
+  TEST_METHOD(LongVector_Min_bool)
+  TEST_METHOD(LongVector_Max_bool)
+  // float16 (half)
+  TEST_METHOD(LongVector_ScalarAdd_float16)
+  TEST_METHOD(LongVector_ScalarMultilpy_float16)
+  TEST_METHOD(LongVector_Multiply_float16)
+  TEST_METHOD(LongVector_Add_float16)
+  TEST_METHOD(LongVector_Min_float16)
+  TEST_METHOD(LongVector_Max_float16)
   
-  BEGIN_TEST_METHOD(LongVector_BinaryOpTest_int32)
-  TEST_METHOD_PROPERTY(L"DataSource",
-                       L"Table:ShaderOpArithTable.xml#LongVector_BinaryOpTable")
-  END_TEST_METHOD()
+  // float32
+  TEST_METHOD(LongVector_ScalarAdd_float32)
+  TEST_METHOD(LongVector_ScalarMultilpy_float32)
+  TEST_METHOD(LongVector_Multiply_float32)
+  TEST_METHOD(LongVector_Add_float32)
+  TEST_METHOD(LongVector_Min_float32)
+  TEST_METHOD(LongVector_Max_float32)
 
-  BEGIN_TEST_METHOD(LongVector_BinaryOpTest_int64)
-  TEST_METHOD_PROPERTY(L"DataSource",
-                       L"Table:ShaderOpArithTable.xml#LongVector_BinaryOpTable")
-  END_TEST_METHOD()
+  // float64
+  TEST_METHOD(LongVector_ScalarAdd_float64)
+  TEST_METHOD(LongVector_ScalarMultilpy_float64)
+  TEST_METHOD(LongVector_Multiply_float64)
+  TEST_METHOD(LongVector_Add_float64)
+  TEST_METHOD(LongVector_Min_float64)
+  TEST_METHOD(LongVector_Max_float64)
 
-  BEGIN_TEST_METHOD(LongVector_BinaryOpTest_uint16)
-  TEST_METHOD_PROPERTY(L"DataSource",
-                       L"Table:ShaderOpArithTable.xml#LongVector_BinaryOpTable")
-  END_TEST_METHOD()
+  // int16
+  TEST_METHOD(LongVector_ScalarAdd_int16)
+  TEST_METHOD(LongVector_ScalarMultilpy_int16)
+  TEST_METHOD(LongVector_Multiply_int16)
+  TEST_METHOD(LongVector_Add_int16)
+  TEST_METHOD(LongVector_Min_int16)
+  TEST_METHOD(LongVector_Max_int16)
 
-  BEGIN_TEST_METHOD(LongVector_BinaryOpTest_uint32)
-  TEST_METHOD_PROPERTY(L"DataSource",
-                       L"Table:ShaderOpArithTable.xml#LongVector_BinaryOpTable")
-  END_TEST_METHOD()
+  // int32
+  TEST_METHOD(LongVector_ScalarAdd_int32)
+  TEST_METHOD(LongVector_ScalarMultilpy_int32)
+  TEST_METHOD(LongVector_Multiply_int32)
+  TEST_METHOD(LongVector_Add_int32)
+  TEST_METHOD(LongVector_Min_int32)
+  TEST_METHOD(LongVector_Max_int32)
 
-  BEGIN_TEST_METHOD(LongVector_BinaryOpTest_uint64)
-  TEST_METHOD_PROPERTY(L"DataSource",
-                       L"Table:ShaderOpArithTable.xml#LongVector_BinaryOpTable")
-  END_TEST_METHOD()
+  // int64
+  TEST_METHOD(LongVector_ScalarAdd_int64)
+  TEST_METHOD(LongVector_ScalarMultilpy_int64)
+  TEST_METHOD(LongVector_Multiply_int64)
+  TEST_METHOD(LongVector_Add_int64)
+  TEST_METHOD(LongVector_Min_int64)
+  TEST_METHOD(LongVector_Max_int64)
+
+  // uint16
+  TEST_METHOD(LongVector_ScalarAdd_uint16)
+  TEST_METHOD(LongVector_ScalarMultilpy_uint16)
+  TEST_METHOD(LongVector_Multiply_uint16)
+  TEST_METHOD(LongVector_Add_uint16)
+  TEST_METHOD(LongVector_Min_uint16)
+  TEST_METHOD(LongVector_Max_uint16)
+
+  // uint32
+  TEST_METHOD(LongVector_ScalarAdd_uint32)
+  TEST_METHOD(LongVector_ScalarMultilpy_uint32)
+  TEST_METHOD(LongVector_Multiply_uint32)
+  TEST_METHOD(LongVector_Add_uint32)
+  TEST_METHOD(LongVector_Min_uint32)
+  TEST_METHOD(LongVector_Max_uint32)
+
+  // uint64
+  TEST_METHOD(LongVector_ScalarAdd_uint64)
+  TEST_METHOD(LongVector_ScalarMultilpy_uint64)
+  TEST_METHOD(LongVector_Multiply_uint64)
+  TEST_METHOD(LongVector_Add_uint64)
+  TEST_METHOD(LongVector_Min_uint64)
+  TEST_METHOD(LongVector_Max_uint64)
 
   BEGIN_TEST_METHOD(LongVector_UnaryOpTest_float16)
   TEST_METHOD_PROPERTY(L"DataSource",
@@ -809,9 +841,9 @@ public:
                                Ty *pInputDataPairs, unsigned inputDataCount);
 
   template <typename T, std::size_t N>
-  void LongVectorBinaryOpTestBase();
+  void LongVectorBinaryOpTestBase(SLongVectorBinaryOpTestConfig& config);
   template <typename T>
-  void LongVectorBinaryOpTestBase();
+  void LongVectorBinaryOpTestBase(SLongVectorBinaryOpTestConfig& config);
 
   template <typename T, std::size_t N>
   void LongVectorUnaryOpTestBase();
@@ -11251,6 +11283,22 @@ struct hlslBool_t
     return static_cast<bool>(val) != static_cast<bool>(other.val);
   }
 
+  bool operator<(const hlslBool_t& other) const{
+    return val < other.val;
+  }
+
+  bool operator>(const hlslBool_t& other) const{
+    return val > other.val;
+  }
+
+  hlslBool_t operator*(const hlslBool_t& other) const{
+    return hlslBool_t(val * other.val);
+  }
+
+  hlslBool_t operator+(const hlslBool_t& other) const{
+    return hlslBool_t(val + other.val);
+  }
+
   // So we can construct std::wstrings using std::wostream
   friend std::wostream& operator<<(std::wostream& os, const hlslBool_t& obj) {
     os << static_cast<bool>(obj.val);
@@ -11288,6 +11336,20 @@ struct hlslHalf_t
     return val != other.val;
   }
 
+  // TODO before PR completion. Will need to confer these to halfs to do the
+  // proper math
+  hlslHalf_t operator*(const hlslHalf_t& other) const{
+    return hlslHalf_t(val * other.val);
+  }
+
+  // TODO before PR completion. Will need to confer these to halfs to do the
+  // proper math
+  hlslHalf_t operator+(const hlslHalf_t& other) const{
+    return hlslHalf_t(val + other.val);
+  }
+
+  // TODO before PR completion. Will need to confer these to halfs to do the
+  // proper math
   hlslHalf_t operator-(const hlslHalf_t& other) const{
     return hlslHalf_t(val - other.val);
   }
@@ -11312,6 +11374,102 @@ struct SLongVectorBinaryOp {
   std::array<T, N> vecOutput;
 };
 
+// Used to pass into LongVectorBinaryOpTestBase
+struct SLongVectorBinaryOpTestConfig
+{
+  SLongVectorBinaryOpTestConfig()
+  {
+    operatorString = "";
+    intrinsicString = "";
+  }
+  // To be used for the value of -DOPERATOR
+  std::string operatorString;
+  // To be used for the value of -DFUNC
+  std::string intrinsicString;
+  bool isScalarOp = false;
+  double tolerance = 0.0;
+};
+
+
+
+
+
+// A helper class to generate deterministic random numbers.
+// For any given seed the generated sequence will always be the same.
+// Each call to generate() will return the next number in the sequence.
+template <typename T>
+class DeterministicGenerator {
+public:
+  DeterministicGenerator(unsigned int seedValue) : generator(seedValue) {
+    if constexpr (std::is_same_v<T, hlslHalf_t>) {
+      // TODO before PR completed. This should probably be a distribution that
+      // can also go negative. int16 ?
+      uint16Dist = std::uniform_int_distribution<uint16_t>(std::numeric_limits<uint16_t>::min(), std::numeric_limits<uint16_t>::max());
+    } else if constexpr (std::is_same_v<T, hlslBool_t>) {
+      uint16Dist = std::uniform_int_distribution<uint16_t>(std::numeric_limits<uint16_t>::min(), std::numeric_limits<uint16_t>::max());
+    } else if constexpr (std::is_same_v<T, int16_t>) {
+      int16Dist = std::uniform_int_distribution<int16_t>(std::numeric_limits<T>::min(), std::numeric_limits<T>::max());
+    } else if constexpr (std::is_same_v<T, int32_t>) {
+      int32Dist = std::uniform_int_distribution<T>(std::numeric_limits<T>::min(), std::numeric_limits<T>::max());
+    } else if constexpr (std::is_same_v<T, int64_t>) {
+      int64Dist = std::uniform_int_distribution<T>(std::numeric_limits<T>::min(), std::numeric_limits<T>::max());
+    } else if constexpr (std::is_same_v<T, uint16_t>) {
+      uint16Dist = std::uniform_int_distribution<T>(std::numeric_limits<T>::min(), std::numeric_limits<T>::max());
+    } else if constexpr (std::is_same_v<T, uint32_t>) {
+      uint32Dist = std::uniform_int_distribution<T>(std::numeric_limits<T>::min(), std::numeric_limits<T>::max());
+    } else if constexpr (std::is_same_v<T, uint64_t>) {
+      uint64Dist = std::uniform_int_distribution<T>(std::numeric_limits<T>::min(), std::numeric_limits<T>::max());
+    } else if constexpr (std::is_same_v<T, float>) {
+      // TODO before PR completed ::min is the lowest postivie value. Passing ::lowest was causing an assert in the distribution. Need to look further into why
+      floatDist = std::uniform_real_distribution<T>(std::numeric_limits<T>::min(), std::numeric_limits<T>::max());
+    } else if constexpr (std::is_same_v<T, double>) {
+      // TODO before PR completed ::min is the lowest postivie value. Passing ::lowest was causing an assert in the distribution. Need to look further into why
+      doubleDist = std::uniform_real_distribution<T>(std::numeric_limits<T>::min(), std::numeric_limits<T>::max());
+    } else
+    {
+      VERIFY_SUCCEEDED(false, "Unsupported type for DeterministicGenerator");
+    }
+  }
+
+  // Function to generate a random number within the range of the type
+  T generate() {
+    if constexpr (std::is_same_v<T, int16_t>) {
+      return int16Dist(generator);
+    } else if constexpr (std::is_same_v<T, hlslBool_t>) {
+      return uint16Dist(generator);
+    } else if constexpr (std::is_same_v<T, hlslHalf_t>) {
+      return uint16Dist(generator);
+    } else if constexpr (std::is_same_v<T, int32_t>) {
+      return int32Dist(generator);
+    } else if constexpr (std::is_same_v<T, int64_t>) {
+      return int64Dist(generator);
+    } else if constexpr (std::is_same_v<T, float>) {
+      return floatDist(generator);
+    } else if constexpr (std::is_same_v<T, double>) {
+      return doubleDist(generator);
+    } else if constexpr (std::is_same_v<T, uint16_t>) {
+      return uint16Dist(generator);
+    } else if constexpr (std::is_same_v<T, uint32_t>) {
+      return uint32Dist(generator);
+    } else if constexpr (std::is_same_v<T, uint64_t>) {
+      return uint64Dist(generator);
+    } else {
+      VERIFY_SUCCEDED(false, "Unsupported type for DeterministicGenerator::generate()");
+    }
+  }
+
+private:
+  std::mt19937 generator; // Mersenne Twister 'random' number generator
+  std::uniform_int_distribution<int16_t> int16Dist;
+  std::uniform_int_distribution<int32_t> int32Dist;
+  std::uniform_int_distribution<int64_t> int64Dist;
+  std::uniform_int_distribution<uint16_t> uint16Dist;
+  std::uniform_int_distribution<uint32_t> uint32Dist;
+  std::uniform_int_distribution<uint64_t> uint64Dist;
+  std::uniform_real_distribution<float> floatDist;
+  std::uniform_real_distribution<double> doubleDist;
+};
+
 // vec1 == Actual vector
 // vec2 == Expected vector
 template <typename T>
@@ -11332,7 +11490,7 @@ bool DoVectorsMatch(const std::vector<T>& vec1, const std::vector<T>& vec2, doub
       if (vec1[i] != vec2[i]) {
         mismatchedIndexes.push_back(i);
       }
-    else if (tolerance == 0 && vec1[i] != vec2[i]) {
+    } else if (tolerance == 0 && vec1[i] != vec2[i]) {
       mismatchedIndexes.push_back(i); 
     } else if constexpr (std::is_same_v<T, hlslBool_t>) {
       // Compiler was very picky and wanted an explicit case for any T that
@@ -11469,82 +11627,582 @@ std::vector<std::vector<T>> parseStringsToNumbers(const std::vector<WEX::Common:
   return result;
 }
 
-TEST_F(ExecutionTest, LongVector_BinaryOpTest_bool) {
+TEST_F(ExecutionTest, LongVector_ScalarAdd_bool) {
   WEX::TestExecution::SetVerifyOutput verifySettings(
     WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
-  LongVectorBinaryOpTestBase<hlslBool_t>();
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = "+";
+  config.isScalarOp = true;
+  LongVectorBinaryOpTestBase<hlslBool_t>(config);
 }
 
-TEST_F(ExecutionTest, LongVector_BinaryOpTest_float16) {
+TEST_F(ExecutionTest, LongVector_ScalarMultilpy_bool) {
   WEX::TestExecution::SetVerifyOutput verifySettings(
     WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
-  LongVectorBinaryOpTestBase<hlslHalf_t>();
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = "";
+  config.isScalarOp = true;
+  LongVectorBinaryOpTestBase<hlslBool_t>(config);
 }
 
-TEST_F(ExecutionTest, LongVector_BinaryOpTest_float32) {
+TEST_F(ExecutionTest, LongVector_Multiply_bool) {
   WEX::TestExecution::SetVerifyOutput verifySettings(
     WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
-  LongVectorBinaryOpTestBase<float>();
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = "*";
+  config.isScalarOp = false;
+  LongVectorBinaryOpTestBase<hlslBool_t>(config);
 }
 
-TEST_F(ExecutionTest, LongVector_BinaryOpTest_float64) {
+TEST_F(ExecutionTest, LongVector_Add_bool) {
   WEX::TestExecution::SetVerifyOutput verifySettings(
     WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
-  LongVectorBinaryOpTestBase<double>();
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = "+";
+  config.isScalarOp = false;
+  LongVectorBinaryOpTestBase<hlslBool_t>(config);
 }
 
-TEST_F(ExecutionTest, LongVector_BinaryOpTest_int16) {
+TEST_F(ExecutionTest, LongVector_Min_bool) {
   WEX::TestExecution::SetVerifyOutput verifySettings(
     WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
-  LongVectorBinaryOpTestBase<int16_t>();
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = ",";
+  config.intrinsicString = "min";
+  config.isScalarOp = false;
+  LongVectorBinaryOpTestBase<hlslBool_t>(config);
 }
 
-TEST_F(ExecutionTest, LongVector_BinaryOpTest_int32) {
+TEST_F(ExecutionTest, LongVector_Max_bool) {
   WEX::TestExecution::SetVerifyOutput verifySettings(
     WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
-  LongVectorBinaryOpTestBase<int32_t>();
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = ",";
+  config.intrinsicString = "max";
+  config.isScalarOp = false;
+  LongVectorBinaryOpTestBase<hlslBool_t>(config);
 }
 
-TEST_F(ExecutionTest, LongVector_BinaryOpTest_int64) {
+TEST_F(ExecutionTest, LongVector_ScalarAdd_float16) {
   WEX::TestExecution::SetVerifyOutput verifySettings(
     WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
-  LongVectorBinaryOpTestBase<int64_t>();
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = "+";
+  config.isScalarOp = true;
+  LongVectorBinaryOpTestBase<hlslHalf_t>(config);
 }
 
-TEST_F(ExecutionTest, LongVector_BinaryOpTest_uint16) {
+TEST_F(ExecutionTest, LongVector_ScalarMultilpy_float16) {
   WEX::TestExecution::SetVerifyOutput verifySettings(
     WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
-  LongVectorBinaryOpTestBase<uint16_t>();
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = "";
+  config.isScalarOp = true;
+  LongVectorBinaryOpTestBase<hlslHalf_t>(config);
 }
 
-TEST_F(ExecutionTest, LongVector_BinaryOpTest_uint32) {
+TEST_F(ExecutionTest, LongVector_Multiply_float16) {
   WEX::TestExecution::SetVerifyOutput verifySettings(
     WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
-  LongVectorBinaryOpTestBase<uint32_t>();
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = "*";
+  config.isScalarOp = false;
+  LongVectorBinaryOpTestBase<hlslHalf_t>(config);
 }
 
-TEST_F(ExecutionTest, LongVector_BinaryOpTest_uint64) {
+TEST_F(ExecutionTest, LongVector_Add_float16) {
   WEX::TestExecution::SetVerifyOutput verifySettings(
     WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
-  LongVectorBinaryOpTestBase<uint64_t>();
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = "+";
+  config.isScalarOp = false;
+  LongVectorBinaryOpTestBase<hlslHalf_t>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_Min_float16) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = ",";
+  config.intrinsicString = "min";
+  config.isScalarOp = false;
+  LongVectorBinaryOpTestBase<hlslHalf_t>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_Max_float16) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = ",";
+  config.intrinsicString = "max";
+  config.isScalarOp = false;
+  LongVectorBinaryOpTestBase<hlslHalf_t>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_ScalarAdd_float32) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = "+";
+  config.isScalarOp = true;
+  LongVectorBinaryOpTestBase<float>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_ScalarMultilpy_float32) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = "";
+  config.isScalarOp = true;
+  LongVectorBinaryOpTestBase<float>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_Multiply_float32) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = "*";
+  config.isScalarOp = false;
+  LongVectorBinaryOpTestBase<float>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_Add_float32) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = "+";
+  config.isScalarOp = false;
+  LongVectorBinaryOpTestBase<float>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_Min_float32) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = ",";
+  config.intrinsicString = "min";
+  config.isScalarOp = false;
+  LongVectorBinaryOpTestBase<float>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_Max_float32) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = ",";
+  config.intrinsicString = "max";
+  config.isScalarOp = false;
+  LongVectorBinaryOpTestBase<float>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_ScalarAdd_float64) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = "+";
+  config.isScalarOp = true;
+  LongVectorBinaryOpTestBase<double>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_ScalarMultilpy_float64) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = "";
+  config.isScalarOp = true;
+  LongVectorBinaryOpTestBase<double>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_Multiply_float64) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = "*";
+  config.isScalarOp = false;
+  LongVectorBinaryOpTestBase<double>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_Add_float64) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = "+";
+  config.isScalarOp = false;
+  LongVectorBinaryOpTestBase<double>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_Min_float64) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = ",";
+  config.intrinsicString = "min";
+  config.isScalarOp = false;
+  LongVectorBinaryOpTestBase<double>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_Max_float64) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = ",";
+  config.intrinsicString = "max";
+  config.isScalarOp = false;
+  LongVectorBinaryOpTestBase<double>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_ScalarAdd_int16) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = "+";
+  config.isScalarOp = true;
+  LongVectorBinaryOpTestBase<int16_t>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_ScalarMultilpy_int16) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = "";
+  config.isScalarOp = true;
+  LongVectorBinaryOpTestBase<int16_t>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_Multiply_int16) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = "*";
+  config.isScalarOp = false;
+  LongVectorBinaryOpTestBase<int16_t>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_Add_int16) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = "+";
+  config.isScalarOp = false;
+  LongVectorBinaryOpTestBase<int16_t>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_Min_int16) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = ",";
+  config.intrinsicString = "min";
+  config.isScalarOp = false;
+  LongVectorBinaryOpTestBase<int16_t>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_Max_int16) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = ",";
+  config.intrinsicString = "max";
+  config.isScalarOp = false;
+  LongVectorBinaryOpTestBase<int16_t>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_ScalarAdd_int32) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = "+";
+  config.isScalarOp = true;
+  LongVectorBinaryOpTestBase<int32_t>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_ScalarMultilpy_int32) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = "";
+  config.isScalarOp = true;
+  LongVectorBinaryOpTestBase<int32_t>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_Multiply_int32) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = "*";
+  config.isScalarOp = false;
+  LongVectorBinaryOpTestBase<int32_t>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_Add_int32) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = "+";
+  config.isScalarOp = false;
+  LongVectorBinaryOpTestBase<int32_t>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_Min_int32) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = ",";
+  config.intrinsicString = "min";
+  config.isScalarOp = false;
+  LongVectorBinaryOpTestBase<int32_t>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_Max_int32) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = ",";
+  config.intrinsicString = "max";
+  config.isScalarOp = false;
+  LongVectorBinaryOpTestBase<int32_t>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_ScalarAdd_int64) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = "+";
+  config.isScalarOp = true;
+  LongVectorBinaryOpTestBase<int64_t>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_ScalarMultilpy_int64) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = "";
+  config.isScalarOp = true;
+  LongVectorBinaryOpTestBase<int64_t>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_Multiply_int64) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = "*";
+  config.isScalarOp = false;
+  LongVectorBinaryOpTestBase<int64_t>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_Add_int64) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = "+";
+  config.isScalarOp = false;
+  LongVectorBinaryOpTestBase<int64_t>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_Min_int64) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = ",";
+  config.intrinsicString = "min";
+  config.isScalarOp = false;
+  LongVectorBinaryOpTestBase<int64_t>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_Max_int64) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = ",";
+  config.intrinsicString = "max";
+  config.isScalarOp = false;
+  LongVectorBinaryOpTestBase<int64_t>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_ScalarAdd_uint16) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = "+";
+  config.isScalarOp = true;
+  LongVectorBinaryOpTestBase<uint16_t>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_ScalarMultilpy_uint16) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = "";
+  config.isScalarOp = true;
+  LongVectorBinaryOpTestBase<uint16_t>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_Multiply_uint16) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = "*";
+  config.isScalarOp = false;
+  LongVectorBinaryOpTestBase<uint16_t>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_Add_uint16) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = "+";
+  config.isScalarOp = false;
+  LongVectorBinaryOpTestBase<uint16_t>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_Min_uint16) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = ",";
+  config.intrinsicString = "min";
+  config.isScalarOp = false;
+  LongVectorBinaryOpTestBase<uint16_t>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_Max_uint16) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = ",";
+  config.intrinsicString = "max";
+  config.isScalarOp = false;
+  LongVectorBinaryOpTestBase<uint16_t>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_ScalarAdd_uint32) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = "+";
+  config.isScalarOp = true;
+  LongVectorBinaryOpTestBase<uint32_t>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_ScalarMultilpy_uint32) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = "";
+  config.isScalarOp = true;
+  LongVectorBinaryOpTestBase<uint32_t>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_Multiply_uint32) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = "*";
+  config.isScalarOp = false;
+  LongVectorBinaryOpTestBase<uint32_t>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_Add_uint32) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = "+";
+  config.isScalarOp = false;
+  LongVectorBinaryOpTestBase<uint32_t>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_Min_uint32) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = ",";
+  config.intrinsicString = "min";
+  config.isScalarOp = false;
+  LongVectorBinaryOpTestBase<uint32_t>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_Max_uint32) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = ",";
+  config.intrinsicString = "max";
+  config.isScalarOp = false;
+  LongVectorBinaryOpTestBase<uint32_t>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_ScalarAdd_uint64) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = "+";
+  config.isScalarOp = true;
+  LongVectorBinaryOpTestBase<uint64_t>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_ScalarMultilpy_uint64) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = "";
+  config.isScalarOp = true;
+  LongVectorBinaryOpTestBase<uint64_t>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_Multiply_uint64) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = "*";
+  config.isScalarOp = false;
+  LongVectorBinaryOpTestBase<uint64_t>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_Add_uint64) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = "+";
+  config.isScalarOp = false;
+  LongVectorBinaryOpTestBase<uint64_t>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_Min_uint64) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = ",";
+  config.intrinsicString = "min";
+  config.isScalarOp = false;
+  LongVectorBinaryOpTestBase<uint64_t>(config);
+}
+
+TEST_F(ExecutionTest, LongVector_Max_uint64) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+    WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+  SLongVectorBinaryOpTestConfig config;
+  config.operatorString = ",";
+  config.intrinsicString = "max";
+  config.isScalarOp = false;
+  LongVectorBinaryOpTestBase<uint64_t>(config);
 }
 
 template <typename T>
-void ExecutionTest::LongVectorBinaryOpTestBase() {
+void ExecutionTest::LongVectorBinaryOpTestBase(SLongVectorBinaryOpTestConfig& config) {
   WEX::TestExecution::SetVerifyOutput verifySettings(
     WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
-  LongVectorBinaryOpTestBase<T, 4>();
-  LongVectorBinaryOpTestBase<T, 5>();
-  LongVectorBinaryOpTestBase<T, 16>();
-  LongVectorBinaryOpTestBase<T, 17>();
-  LongVectorBinaryOpTestBase<T, 35>();
+  LongVectorBinaryOpTestBase<T, 4>(config);
+  LongVectorBinaryOpTestBase<T, 5>(config);
+  LongVectorBinaryOpTestBase<T, 16>(config);
+  LongVectorBinaryOpTestBase<T, 17>(config);
+  LongVectorBinaryOpTestBase<T, 35>(config);
   // TODOLONGVEC: 100, 1024 breaks the size limit for structured buffers
-  //LongVectorBinaryOpTestBase<T, 100>();
-  //LongVectorBinaryOpTestBase<T, 1024>();
+  //LongVectorBinaryOpTestBase<T, 100>(config);
+  //LongVectorBinaryOpTestBase<T, 1024>(config);
 }
 
 template <typename T, std::size_t N>
-void ExecutionTest::LongVectorBinaryOpTestBase() {
+void ExecutionTest::LongVectorBinaryOpTestBase(SLongVectorBinaryOpTestConfig& config) {
   WEX::TestExecution::SetVerifyOutput verifySettings(
     WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
 
@@ -11565,105 +12223,95 @@ void ExecutionTest::LongVectorBinaryOpTestBase() {
     return;
   }
 
-  // TableParameterHandler is a helper that parses the xml file linked
-  // in the taef metadata for this test method. So it uses
-  // ShaderOpArithTable.xml. And more specifically, it looks for the table ID
-  // LongVectorTestTable_ScalarTests as defined in the TAEF boilerplate for this
-  // test method.
-  const int tableSize = sizeof(LongVectorBinaryOpParameters) / sizeof(TableParameter);
-  TableParameterHandler handler(LongVectorBinaryOpParameters, tableSize);
+  DeterministicGenerator<T> numberGenerator(1337);
+  std::vector<T> vecInput1 = {};
+  std::vector<T> vecInput2 = {};
+  std::vector<T> scalarInputs = {};
+  const double validationTolerance = config.tolerance;
 
-  CW2A Target(handler.GetTableParamByName(L"ShaderOp.Target")->m_str);
-  CW2A Text(handler.GetTableParamByName(L"ShaderOp.Text")->m_str);
-
-  // Note: Each element in these vectors is an array of the values
-  // inside each <value> tag in ShaderOpArithTable.xml for this tests
-  // row. Multiple value tags mean a longer vector.
-  std::vector<WEX::Common::String> *Validation_VecInput1 =
-  &(handler.GetTableParamByName(L"Validation.VecInput1")->m_StringTable);
-  auto vecInput1 = parseStringsToNumbers<T>(Validation_VecInput1);
-
-  std::vector<WEX::Common::String> *Validation_VecInput2 =
-  &(handler.GetTableParamByName(L"Validation.VecInput2")->m_StringTable);
-  auto vecInput2 = parseStringsToNumbers<T>(Validation_VecInput2);
-
-  std::vector<WEX::Common::String> *Validation_VecExpected =
-  &(handler.GetTableParamByName(L"Validation.VecExpected")->m_StringTable);
-  auto vecExpected = parseStringsToNumbers<T>(Validation_VecExpected);
-
-  std::vector<WEX::Common::String> *Scalar_Inputs =
-  &handler.GetTableParamByName(L"Validation.ScalarInput")->m_StringTable;
-  auto scalarInputs = parseStringsToNumbers<T>(Scalar_Inputs);
-
-  // double is plenty of room for tolerance range
-  const double Validation_Tolerance =
-  handler.GetTableParamByName(L"Validation.Tolerance")->m_double;
-
-  const size_t inputVectorCount = vecInput1.size();
-  const bool hasScalarInput = scalarInputs.size() > 0;
-  const bool hasVecInput2 = vecInput2.size() > 0;
-  VERIFY_IS_FALSE(hasScalarInput == hasVecInput2, L"Expecting either a vector and vector op or a vector and scalar op");
-
-  // The two operand vectors must be the same size.
-  VERIFY_IS_TRUE(inputVectorCount == vecInput2.size() || inputVectorCount == scalarInputs.size());
-
-  // Sanity because breaking the XML would be easy.
-  if(hasVecInput2)
+  // Fill the vector inputs with values.
+  for(size_t i = 0; i < N; i++)
   {
-    for(size_t i = 0 ; i < vecInput1.size(); i++)
+    vecInput1.push_back(numberGenerator.generate());
+    if(config.isScalarOp)
     {
-      VERIFY_IS_TRUE(vecInput1[i].size() == vecInput2[i].size(), L"Input1 and Input2 vectors must be the same size.");
-      }
+      scalarInputs.push_back(numberGenerator.generate());
+    }
+    else
+    {
+      vecInput2.push_back(numberGenerator.generate());
+    }
   }
 
-  // Keep filling the vectors with 'copies' of themselves until we hit N
-  if(vecInput1[0].size() != N)
-  {
-    size_t index = 0;
-    for(auto& v : vecInput1)
-    {
-      index = 0;
-      while(v.size() < N)
-      {
-        v.push_back(v[index]);
-        index++;
+  // Compute the expected results. Based on operation.
+  std::vector<T> vecExpected = {};
+
+  for (size_t i = 0; i < vecInput1.size(); i++) {
+    T input1 = vecInput1[i];
+    T input2 = config.isScalarOp ? scalarInputs[0] : vecInput2[i];
+    if (config.operatorString == "*") {
+      vecExpected.push_back(input1 * input2);
+    } else if (config.operatorString == "+") {
+      vecExpected.push_back(input1 + input2);
+    } else if (config.operatorString == ",") {
+      // Must be an intrinsic
+      VERIFY_IS_TRUE(config.intrinsicString != "", "Expecting intrinsic string");
+      if (config.intrinsicString == "min") {
+        vecExpected.push_back(std::min<T>(input1, input2));
+      } else if (config.intrinsicString == "max") {
+        vecExpected.push_back(std::min<T>(input1, input2));
+      } else {
+        LogErrorFmt(L"Unrecognized intrinsic string: %s", config.intrinsicString.c_str());
       }
-    }
-    for(auto& v : vecInput2)
-    {
-      index = 0;
-      while(v.size() < N)
-      {
-        v.push_back(v[index]);
-        index++;
-      }
-    }
-    for(auto& v : vecExpected)
-    {
-      index = 0;
-      while(v.size() < N)
-      {
-        v.push_back(v[index]);
-        index++;
-      }
+    } else {
+      LogErrorFmt(L"Don't know how to compute expected for operatorString: %s", config.operatorString.c_str());
     }
   }
+
+  // Requires two macros, one optional.
+  // 1. -DOPERATOR : *, +, -, /, or even a 'comma'
+  // 2. -DOPERAND2: : l.vecInput2 or scalarInput
+  // 3. Optional: -DFUNC : min, max, etc.
+  std::string sText = R"(
+  struct SLongVectorBinaryOp{
+      TYPE scalarInput;
+      vector<TYPE, NUM> vecInput1;
+      vector<TYPE, NUM> vecInput2;
+      vector<TYPE, NUM> vecOutput;
+  };
+  RWStructuredBuffer<SLongVectorBinaryOp> g_buf : register(u0);
+  [numthreads(8,8,1)]
+  void main(uint GI : SV_GroupIndex) {
+      SLongVectorBinaryOp l = g_buf[GI];
+      l.vecOutput = FUNC(l.vecInput1 OPERATOR OPERAND2);
+      g_buf[GI] = l;
+  };
+  )";
+  std::string sTarget = "cs_6_9";
 
   CComPtr<IStream> pStream;
   ReadHlslDataIntoNewStream(L"ShaderOpArith.xml", &pStream);
 
-  const size_t numElementsPerVector = vecInput1[0].size();
-
-  // Create the compiler args outside of the lambda so the string pointer stays
-  // valid for the lifespan of the test method. Really should just use something
-  // like a std::shared_ptr<std::string>
+  // TODOREFAC: Make this a helper function that takes config and type
   char compilerOptions[256];
   std::string type = GetHLSLTypeString<T>();
   const bool is16BitType = (type == "int16_t" || type == "uint16_t" || type == "half");
   std::string additionalOptions = is16BitType ? "-enable-16bit-types" : "";
-  VERIFY_IS_TRUE(sprintf_s(compilerOptions, sizeof(compilerOptions),
-                           "-DTYPE=%s -D NUM=%zu %s", type.c_str(), numElementsPerVector, additionalOptions.c_str()) != -1);
+  additionalOptions += " -DOPERATOR=";
+  additionalOptions += config.operatorString;
+  additionalOptions += " -DOPERAND2=";
+  additionalOptions += config.isScalarOp ? "scalarInput" : "vecInput2";
+  additionalOptions += " -DFUNC=";
+  additionalOptions += config.intrinsicString;
 
+  VERIFY_IS_TRUE(sprintf_s(compilerOptions, sizeof(compilerOptions),
+                           "-DTYPE=%s -D NUM=%zu %s", type.c_str(), N, additionalOptions.c_str()) != -1);
+
+  // TODOREFAC: Is it possible to make this common? Can we template the
+  // SLONGVectorBinaryOp<T, N> ? If we can the only logic that varies at all is
+  // whether or not we have vec2/scalar inputs. And thats fine. We can always
+  // have them. Just make them empty. Also need to pass in the string
+  // LongVectorBinaryOp or UnaryOp, thats easy.
   std::shared_ptr<ShaderOpTestResult> test = RunShaderOpTest(
     pDevice, m_support, pStream, "LongVectorBinaryOp", 
     // this callback is called when the test is creating the resource to run
@@ -11673,33 +12321,30 @@ void ExecutionTest::LongVectorBinaryOpTestBase() {
       LogCommentFmt(L"RunShaderOpTest CB. Shader Name: %S", Name);
       VERIFY_IS_TRUE(0 == _stricmp(Name, "SLongVectorBinaryOp"));
 
-      const size_t size = sizeof(SLongVectorBinaryOp<T, N>) * inputVectorCount;
+      const size_t size = sizeof(SLongVectorBinaryOp<T, N>);
       Data.resize(size);
 
       // Treat the data as an array of SLongVectorBinaryOp<T N> structs.
       // One struct for each set of <value> tags in the  ShaderOpArithTable.xml
       // A set of value tags is the corresponding <value> tags across <Parameters>
-      SLongVectorBinaryOp<T, N> *pPrimitives = (SLongVectorBinaryOp<T, N> *)Data.data();
+      SLongVectorBinaryOp<T, N> *shaderStruct = (SLongVectorBinaryOp<T, N> *)Data.data();
 
-      for (size_t i = 0; i < inputVectorCount ; ++i) {
-        SLongVectorBinaryOp<T, N> *p = &pPrimitives[i];
+      // TODO: REFAC: For the copy do we need to take the special hlslT_t
+      // types into account? This is going ot do a struct copy - which shuold
+      // just work....but...maybe we need a verify size of?
+      std::copy(vecInput1.begin(), vecInput1.end(), shaderStruct->vecInput1.begin());
 
-        std::copy(vecInput1[i].begin(), vecInput1[i].end(), p->vecInput1.begin());
-
-        if(!vecInput2.empty())
-        {
-          std::copy(vecInput2[i].begin(), vecInput2[i].end(), p->vecInput2.begin());
-        }
-        else if(!scalarInputs.empty())
-        {
-          VERIFY_IS_TRUE(scalarInputs[i].size() == 1, L"Scalar input vector must have exactly one element.");
-          p->scalarInput = scalarInputs[i][0];
-        }
+      if(config.isScalarOp) {
+        shaderStruct->scalarInput = scalarInputs[0];
+      }
+      else {
+        std::copy(vecInput2.begin(), vecInput2.end(), shaderStruct->vecInput2.begin());
       }
 
-      // Override the shader name and text (source hlsl) with the values from ShaderOpArithTable.xml
-      pShaderOp->Shaders.at(0).Target = Target.m_psz;
-      pShaderOp->Shaders.at(0).Text = Text.m_psz;
+      // We need to set shader text (source) and a target. We dont use the xml
+      // table for that in this test code.
+      pShaderOp->Shaders.at(0).Target = sTarget.c_str();
+      pShaderOp->Shaders.at(0).Text = sText.c_str();
 
       // And override the compiler arguments. We pass in the element
       // type for the vectors and their size.
@@ -11712,15 +12357,11 @@ void ExecutionTest::LongVectorBinaryOpTestBase() {
   test->Test->GetReadBackData("SLongVectorBinaryOp", &data);
 
   // Cast the buffer back into an array of the structs we expect.
-  SLongVectorBinaryOp<T, N> *pPrimitive = (SLongVectorBinaryOp<T, N>*)data.data();
-  for(size_t i = 0; i < inputVectorCount; i++)
-  {
-    SLongVectorBinaryOp<T, N> *p = &pPrimitive[i];
-    std::vector<T> vecOutput(p->vecOutput.begin(), p->vecOutput.end());
+  SLongVectorBinaryOp<T, N> *pShaderStruct = (SLongVectorBinaryOp<T, N>*)data.data();
 
-    LogCommentFmt(L"Verifying output for vector index %zu", i);
-    VERIFY_SUCCEEDED(DoVectorsMatch<T>(vecOutput, vecExpected[i], Validation_Tolerance));
-  }
+  std::vector<T> vecOutput(pShaderStruct->vecOutput.begin(), pShaderStruct->vecOutput.end());
+
+  VERIFY_SUCCEEDED(DoVectorsMatch<T>(vecOutput, vecExpected, validationTolerance));
 }
 
 template <typename T, std::size_t N>
