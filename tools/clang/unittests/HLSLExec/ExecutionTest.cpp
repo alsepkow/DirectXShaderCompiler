@@ -509,6 +509,22 @@ public:
                        L"Table:ShaderOpArithTable.xml#PackUnpackOpTable")
   END_TEST_METHOD()
 
+  BEGIN_TEST_METHOD(LongVector_Scalar_Arithmetic)
+  TEST_METHOD_PROPERTY(
+      L"DataSource",
+      L"Table:ShaderOpArithTable.xml#LongVector_Arithmetic_Scalar_Table")
+  END_TEST_METHOD()
+
+  BEGIN_TEST_METHOD(LongVector_Vector_Arithmetic)
+  TEST_METHOD_PROPERTY(
+      L"DataSource",
+      L"Table:ShaderOpArithTable.xml#LongVector_Arithmetic_Vector_Table")
+  END_TEST_METHOD()
+
+  // ....... Add entry points for other general op classes:  Trigonometry, Math,
+  // Bitwise ops..... whatever works to group together with a similar xml table
+  // design. Current test cases could be lumped into binary and unary ops.
+
   // bool binary ops
   TEST_METHOD(LongVector_ScalarAdd_bool)
   TEST_METHOD(LongVector_ScalarMultiply_bool)
@@ -2049,6 +2065,11 @@ public:
   void WaitForSignal(ID3D12CommandQueue *pCQ, FenceObj &FO) {
     ::WaitForSignal(pCQ, FO.m_fence, FO.m_fenceEvent, FO.m_fenceValue++);
   }
+
+  LongVectorOpType GetLongVectorOpType();
+  void RunLongVectorTest();
+  template <typename T>
+  std::vector<T> GetVectorFromXML(std::wstring Name);
 };
 #define WAVE_INTRINSIC_DXBC_GUARD                                              \
   "#ifdef USING_DXBC\r\n"                                                      \
@@ -11616,6 +11637,131 @@ bool DoArraysMatch(const std::array<T, N> &ActualValues,
   return false;
 }
 
+// Needed a helper to keep compiler happy about HLSLBool_t and HLSLHalf_t when
+// calling TryGetValue.
+template <typename T>
+std::vector<T> ExecutionTest::GetVectorFromXML(std::wstring Name)
+{
+  std::vector<T> Values;
+
+  if constexpr (std::is_same_v<T, HLSLBool_t>) {
+    // bool
+    WEX::TestExecution::TestDataArray<bool> InputFromXML;
+    if( SUCCEEDED(WEX::TestExecution::TestData::TryGetValue(Name.c_str(), InputFromXML))){
+      WEX::Logging::Log::Comment(L"Got bool InputFromXML");
+      for(size_t i = 0; i < InputFromXML.GetSize(); ++i) {
+        Values.push_back(InputFromXML[i]);
+      }
+    }
+  }
+  else if constexpr (std::is_same_v<T, HLSLHalf_t>) {
+    WEX::TestExecution::TestDataArray<float> InputFromXML;
+    if( SUCCEEDED(WEX::TestExecution::TestData::TryGetValue(Name.c_str(), InputFromXML))){
+      WEX::Logging::Log::Comment(L"Got half InputFromXML");
+      for(size_t i = 0; i < InputFromXML.GetSize(); ++i) {
+        Values.push_back(DirectX::PackedVector::XMConvertFloatToHalf(InputFromXML[i]));
+      }
+    }
+  }
+  else if constexpr (std::is_same_v<T, uint16_t>) {
+    // TAEF doesn't support uint16_t apparently
+    WEX::TestExecution::TestDataArray<uint32_t> InputFromXML;
+    if( SUCCEEDED(WEX::TestExecution::TestData::TryGetValue(Name.c_str(), InputFromXML))){
+      WEX::Logging::Log::Comment(L"Got int16 InputFromXML");
+      for(size_t i = 0; i < InputFromXML.GetSize(); ++i) {
+        Values.push_back(static_cast<uint16_t>(InputFromXML[i]));
+      }
+    }
+  }
+  else if constexpr (std::is_same_v<T, int16_t>) {
+    // TAEF doesn't support int16_t apparently
+    WEX::TestExecution::TestDataArray<int32_t> InputFromXML;
+    if( SUCCEEDED(WEX::TestExecution::TestData::TryGetValue(Name.c_str(), InputFromXML))){
+      WEX::Logging::Log::Comment(L"Got int16 InputFromXML");
+      for(size_t i = 0; i < InputFromXML.GetSize(); ++i) {
+        Values.push_back(static_cast<int16_t>(InputFromXML[i]));
+      }
+    }
+  }
+  else
+  {
+    WEX::TestExecution::TestDataArray<T> InputFromXML;
+    if( SUCCEEDED(WEX::TestExecution::TestData::TryGetValue(Name.c_str(), InputFromXML)))
+    {
+      WEX::Logging::Log::Comment(L"Got InputFromXML");
+      for(size_t i = 0; i < InputFromXML.GetSize(); ++i) {
+        Values.push_back(InputFromXML[i]);
+      }
+    }
+  }
+
+  if(Values.empty()) {
+    WEX::Logging::Log::Error(L"Failed to get data from XML");
+  }
+
+  return Values;
+}
+
+LongVectorOpType ExecutionTest::GetLongVectorOpType() {
+
+  // parse the op type
+  WEX::Common::String OpName;
+  if( SUCCEEDED(WEX::TestExecution::TestData::TryGetValue(L"OpName", OpName))) {
+    WEX::Logging::Log::Comment(OpName);
+    if(OpName == L"add") {
+      WEX::Logging::Log::Comment(L"add");
+    } else if (OpName == L"multiply") {
+      WEX::Logging::Log::Comment(L"multiply");
+    } else {
+      WEX::Logging::Log::Warning(L"Unknown type");
+    }
+  }
+
+  if (OpName == "scalar_add") {
+    return LongVectorOpType_ScalarAdd;
+  } else if (OpName == "scalar_multiply") {
+    return LongVectorOpType_ScalarMultiply;
+  } else if (OpName == "vector_add") {
+    return LongVectorOpType_Add;
+  } else if (OpName == "vector_multiply") {
+    return LongVectorOpType_Multiply;
+  } else {
+    return LongVectorOpType_UnInitialized;
+  }
+}
+
+void ExecutionTest::RunLongVectorTest()
+{
+    LongVectorOpType OpType = GetLongVectorOpType();
+
+    // Parse the data type.
+    WEX::Common::String DataType;
+    if( SUCCEEDED(WEX::TestExecution::TestData::TryGetValue(L"DataType", DataType))) {
+      WEX::Logging::Log::Comment(DataType);
+      if(DataType == L"float") {
+        WEX::Logging::Log::Comment(L"Float type");
+        LongVectorOpTestBase<float>(OpType);
+      } else if (DataType == L"int32") {
+        WEX::Logging::Log::Comment(L"Int32 type");
+        LongVectorOpTestBase<uint32_t>(OpType);
+      } else {
+        WEX::Logging::Log::Error(L"Unknown type");
+      }
+    }
+}
+
+TEST_F(ExecutionTest, LongVector_Scalar_Arithmetic) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+      WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+    RunLongVectorTest();
+}
+
+TEST_F(ExecutionTest, LongVector_Vector_Arithmetic) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+      WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+    RunLongVectorTest();
+}
+
 TEST_F(ExecutionTest, LongVector_ScalarAdd_bool) {
   WEX::TestExecution::SetVerifyOutput verifySettings(
       WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
@@ -12135,14 +12281,32 @@ std::array<T, N> InputVector2;
 std::array<T, 1> ScalarInput;
 ScalarInput[0] = NumberGenerator.generate();
 const bool IsVectorBinaryOp = TestConfig.IsBinaryOp && !TestConfig.IsScalarOp;
+const bool IsScalarBinaryOp = TestConfig.IsBinaryOp && TestConfig.IsScalarOp;
+
+
+if(IsScalarBinaryOp)
+{
+  auto ScalarInput1FromXML = GetVectorFromXML<T>(L"Validation.ScalarInput");
+  ScalarInput[0] = ScalarInput1FromXML[0];
+}
+
+auto Input1FromXML = GetVectorFromXML<T>(L"Validation.InputValueSet1");
+std::vector<T> Input2FromXML;
+
+if(IsVectorBinaryOp)
+{
+  Input2FromXML = GetVectorFromXML<T>(L"Validation.InputValueSet2");
+}
 
 // Fill the vector inputs with values.
 for (size_t Index = 0; Index < N; Index++) {
   // Always generate input.
-  InputVector1[Index] = NumberGenerator.generate();
+  InputVector1[Index] = Input1FromXML[Index % Input1FromXML.size()];
 
   if (IsVectorBinaryOp)
-    InputVector2[Index] = NumberGenerator.generate();
+  {
+    InputVector2[Index] = Input2FromXML[Index % Input2FromXML.size()];
+  }
 }
 
 // We pass these values into the shader and they're requried to compile. So
