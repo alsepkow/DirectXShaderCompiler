@@ -11220,7 +11220,7 @@ void ExecutionTest::LongVectorOpTestDispatchByVectorSize(U opType, TableParamete
   if(TestConfig.HasInputArguments()){
     std::wstring InputArgsName(Handler.GetTableParamByName(L"InputArgsName")->m_str);
     if(!InputArgsName.empty()) {
-      TestConfig.SetInputArgumentsName(InputArgsName);
+      TestConfig.SetInputArgsArrayName(InputArgsName);
     }
   }
 

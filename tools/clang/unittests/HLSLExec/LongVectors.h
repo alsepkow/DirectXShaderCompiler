@@ -230,11 +230,8 @@ T GetLongVectorOpType(const LongVectorOpTypeStringToEnumValue* Values, const std
     }
   }
 
-  VERIFY_FAIL(WEX::Common::String().Format(L"Invalid LongVectorOpType string: %s", OpTypeString.c_str()));
+  LogErrorFmtThrow(L"Invalid LongVectorOpType string: %s", OpTypeString.c_str());
 
-  // VERIFY_FAIL will throw an exception, but we need to return something to
-  // keep the compiler happy. This will also produce a build break if a new enum
-  // type is added that calls this function. That's a good thing.
   if(std::is_same_v<T, LongVectorBinaryOpType>)
     return static_cast<T>(LongVectorBinaryOpType_EnumValueCount);
   else if (std::is_same_v<T, LongVectorUnaryOpType>)
@@ -408,7 +405,7 @@ public:
         return true;
       default:
         return false;
-    }
+    };
   }
 
   bool HasInputArguments() const {
@@ -500,8 +497,8 @@ public:
     return T();
   }
 
-  void SetArgsArrayName(std::wstring ArgsArrayName) {
-    ArgsArrayName_ = ArgsArrayName;
+  void SetInputArgsArrayName(std::wstring InputArgsArrayName) {
+    InputArgsArrayName_ = InputArgsArrayName;
   }
 
   void SetInputValueSet1(std::wstring InputValueSetName) {
@@ -522,21 +519,21 @@ public:
 
   std::vector<T> GetInputArgsArray() const{
 
-    std::vector<T> ArgsArray;
+    std::vector<T> InputArgs;
 
-    if (ArgsArrayName_.empty())
-      VERIFY_FAIL("No args array name set.");
+    std::wstring InputArgsArrayName = InputArgsArrayName_;
 
-    std::wstring ArgsArrayName = ArgsArrayName_;
-
-    if(UnaryOpType_ == LongVectorUnaryOpType_Clamp && ArgsArrayName_ == L"") {
-      ArgsArrayName = L"DefaultClampArgs";
+    if(UnaryOpType_ == LongVectorUnaryOpType_Clamp && InputArgsArrayName == L"") {
+      InputArgsArrayName = L"DefaultClampArgs";
     }
 
-    if(std::is_same_v<T, HLSLBool_t> && UnaryOpType_ == LongVectorUnaryOpType_Clamp) {
+    if (InputArgsArrayName.empty())
+      VERIFY_FAIL("No args array name set.");
+
+    if(std::is_same_v<T, HLSLBool_t> && UnaryOpType_ == LongVectorUnaryOpType_Clamp)
       VERIFY_FAIL("Clamp is not supported for bools.");
     else
-      return GetInputValueSetByKey<T>(ArgsArrayName);
+      return GetInputValueSetByKey<T>(InputArgsArrayName);
 
     VERIFY_FAIL("Invalid type for args array.");
     return std::vector<T>();
@@ -623,7 +620,7 @@ private:
   LongVectorUnaryOpType UnaryOpType_ = LongVectorUnaryOpType_EnumValueCount;
   std::wstring InputValueSetName1_ = L"DefaultInputValueSet1";
   std::wstring InputValueSetName2_ = L"DefaultInputValueSet2";
-  std::wstring ArgsArrayName_ = L""; // No default args array
+  std::wstring InputArgsArrayName_ = L""; // No default args array
 };
 
 template <typename T> bool DoValuesMatch(T A, T B, float Tolerance) {
