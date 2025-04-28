@@ -62,5 +62,3 @@ static const std::map<std::wstring, std::vector<double>> DefaultInputValueSet_fl
     {L"DefaultInputValueSet2", {1.0, -2.0, 3.0, -4.0, 5.0, -6.0, 7.0, -8.0, 9.0, -10.0}},
     {L"DefaultClampArgs", {-1.0 , 1.0}} // Min, Max values for clamp
 };
-
-#endif // DEFAULT_INPUT_VALUE_SETS_H
