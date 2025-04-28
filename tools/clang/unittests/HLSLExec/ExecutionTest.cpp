@@ -11155,8 +11155,7 @@ TEST_F(ExecutionTest, LongVector_BinaryOpTest) {
 TEST_F(ExecutionTest, LongVector_UnaryOpTest) {
   WEX::TestExecution::SetVerifyOutput verifySettings(
       WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
-  using namespace WEX::Common;
-  
+
   const int TableSize = sizeof(LongVectorUnaryOpParameters) / sizeof(TableParameter);
   TableParameterHandler Handler(LongVectorUnaryOpParameters, TableSize);
   
@@ -11203,14 +11202,14 @@ void ExecutionTest::LongVectorOpTestDispatchByVectorSize(U opType, TableParamete
   LongVectorOpTestConfig<T> TestConfig(opType);
 
   // InputValueSetName1 is optional. So the string may be empty. An empty
-  // string will result in the default value set being used.
+  // string will result in the default value set for this DataType being used.
   std::wstring InputValueSet1(Handler.GetTableParamByName(L"InputValueSetName1")->m_str);
   if(!InputValueSet1.empty()) {
     TestConfig.SetInputValueSet1(InputValueSet1);
   }
 
   // InputValueSetName2 is optional. So the string may be empty. An empty
-  // string will result in the default value set being used.
+  // string will result in the default value set for this DataType being used.
   if(TestConfig.IsBinaryOp()) {
     std::wstring InputValueSet2(Handler.GetTableParamByName(L"InputValueSetName2")->m_str);
     if(!InputValueSet1.empty()) {
@@ -11273,6 +11272,8 @@ void ExecutionTest::LongVectorOpTestBase(
     // with values above.
     ScalarInput[0] = InputVector2ValueSet[0];
 
+  // Fill the input vectors with values from the value set. Repeat the values
+  // when we reach the end of the value set.
   for (size_t Index = 0; Index < N; Index++) {
     InputVector1[Index] = InputVector1ValueSet[Index % InputVector1ValueSet.size()];
 
@@ -11293,7 +11294,6 @@ void ExecutionTest::LongVectorOpTestBase(
     ExpectedVector = ComputeExpectedValues(InputVector1, TestConfig);
 
   if(LogInputs){
-
     LogLongVector<T, N>(InputVector1, L"InputVector1");
 
     if(IsVectorBinaryOp)
