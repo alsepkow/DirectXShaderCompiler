@@ -135,7 +135,7 @@ GetLongVectorBinaryOpType(const std::wstring &OpTypeString) {
 enum LongVectorUnaryOpType {
   LongVectorUnaryOpType_Clamp,
   LongVectorUnaryOpType_Initialize,
-  LongVectorUnaryOpType_EnumValueCount
+  LongVectorUnaryOpType_EnumValueCount,
 };
 
 static const LongVectorOpTypeStringToEnumValue
@@ -156,17 +156,66 @@ GetLongVectorUnaryOpType(const std::wstring &OpTypeString) {
       std::size(LongVectorUnaryOpTypeStringToEnumMap));
 }
 
+enum LongVectorTrigonometricOpType {
+  LongVectorTrigonometricOpType_Acos,
+  LongVectorTrigonometricOpType_Asin,
+  LongVectorTrigonometricOpType_Atan,
+  LongVectorTrigonometricOpType_Cos,
+  LongVectorTrigonometricOpType_Cosh,
+  LongVectorTrigonometricOpType_Sin,
+  LongVectorTrigonometricOpType_Sinh,
+  LongVectorTrigonometricOpType_Tan,
+  LongVectorTrigonometricOpType_Tanh,
+  LongVectorTrigonometricOpType_EnumValueCount,
+};
+
+static const LongVectorOpTypeStringToEnumValue
+    LongVectorTrigonometricOpTypeStringToEnumMap[] = {
+        {L"LongVectorTrigonometricOpType_Acos", LongVectorTrigonometricOpType_Acos},
+        {L"LongVectorTrigonometricOpType_Asin", LongVectorTrigonometricOpType_Asin},
+        {L"LongVectorTrigonometricOpType_Atan", LongVectorTrigonometricOpType_Atan},
+        {L"LongVectorTrigonometricOpType_Cos", LongVectorTrigonometricOpType_Cos},
+        {L"LongVectorTrigonometricOpType_Cosh", LongVectorTrigonometricOpType_Cosh},
+        {L"LongVectorTrigonometricOpType_Sin", LongVectorTrigonometricOpType_Sin},
+        {L"LongVectorTrigonometricOpType_Sinh", LongVectorTrigonometricOpType_Sinh},
+        {L"LongVectorTrigonometricOpType_Tan", LongVectorTrigonometricOpType_Tan},
+        {L"LongVectorTrigonometricOpType_Tanh", LongVectorTrigonometricOpType_Tanh},
+        // Add new unary op types here.
+};
+
+static_assert(_countof(LongVectorTrigonometricOpTypeStringToEnumMap) ==
+                  LongVectorTrigonometricOpType_EnumValueCount,
+              "LongVectorTrigonometricOpTypeStringToEnumMap size mismatch. Did you add "
+              "a new enum value?");
+
+LongVectorTrigonometricOpType
+GetLongVectorTrigonometricOpType(const std::wstring &OpTypeString) {
+  return GetLongVectorOpType<LongVectorTrigonometricOpType>(
+      LongVectorTrigonometricOpTypeStringToEnumMap, OpTypeString,
+      std::size(LongVectorTrigonometricOpTypeStringToEnumMap));
+}
+
 template <typename T>
 std::vector<T> GetInputValueSetByKey(const std::wstring &Key) {
   return std::vector<T>(LongVectorTestData<T>::Data.at(Key));
 }
 
-// Used to pass into LongVectorOpTestBase
-template <typename T> class LongVectorOpTestConfig {
-public:
-  LongVectorOpTestConfig() = default;
+template <typename T>  struct LongVectorOpTypeTraits {
+  LongVectorOpTypeTraits(T OpType) : OpType(OpType) {}
+  T OpType;
+};
 
-  LongVectorOpTestConfig(LongVectorUnaryOpType OpType) : UnaryOpType(OpType) {
+// Used to pass into LongVectorOpTestBase
+// T == DataType (i.e int32_t, HLSLHalf_t, etc.)
+// U == OpType (i.e LongVectorBinaryOpType, LongVectorUnaryOpType)
+template <typename T, typename U> class LongVectorOpTestConfig {
+public:
+  LongVectorOpTestConfig(U OpType) : OpTypeTraits(OpType) {
+    Initialize(OpType);
+  }
+
+  void Initialize(LongVectorUnaryOpType OpType)
+  {
     IntrinsicString = "";
 
     if (IsFloatingPointType())
@@ -185,7 +234,7 @@ public:
     }
   }
 
-  LongVectorOpTestConfig(LongVectorBinaryOpType OpType) : BinaryOpType(OpType) {
+  void Initialize(LongVectorBinaryOpType OpType) {
     IntrinsicString = "";
 
     if (IsFloatingPointType())
@@ -225,38 +274,142 @@ public:
     }
   }
 
+  void Initialize(LongVectorTrigonometricOpType OpType)
+  {
+    // Trigonometric ops are always floating point.
+    Tolerance = 1;
+
+    OperatorString = "";
+
+    switch (OpType) {
+    case LongVectorUnaryOpType_Acos:
+      IntrinsicString = "acos";
+      break;
+    case LongVectorUnaryOpType_Asin:
+      IntrinsicString = "asin";
+      break;
+    case LongVectorUnaryOpType_Atan:
+      IntrinsicString = "atan";
+      break;
+    case LongVectorUnaryOpType_Cos:
+      IntrinsicString = "cos";
+      break;
+    case LongVectorUnaryOpType_Cosh:
+      IntrinsicString = "cosh";
+      break;
+    case LongVectorUnaryOpType_Sin:
+      IntrinsicString = "sin";
+      break;
+    case LongVectorUnaryOpType_Sinh:
+      IntrinsicString = "sinh";
+      break;
+    case LongVectorUnaryOpType_Tan:
+      IntrinsicString = "tan";
+      break;
+    case LongVectorUnaryOpType_Tanh:
+      IntrinsicString = "tanh";
+      break;
+
+    default:
+      VERIFY_FAIL("Invalid LongVectorTrigonometricOpType");
+    }
+  }
+
+
   bool IsFloatingPointType() const {
     return std::is_same_v<T, float> || std::is_same_v<T, double> ||
            std::is_same_v<T, HLSLHalf_t>;
   }
 
+  // TODO: Fix these. Can we do template specialization instead? Right now the
+  // compiler complaiens about unreferenced args.
+  bool IsBinaryOp(LongVectorBinaryOpType OpType) const {
+    if(OpType == 1337)
+      return false;
+    return true;
+  }
+  bool IsBinaryOp(LongVectorUnaryOpType OpType) const {
+    if(OpType == 1337)
+      return false;
+    return false;
+  }
+  bool IsBinaryOp(LongVectorTrigonometricOpType OpType) const {
+    if(OpType == 1337)
+      return false;
+    return false;
+  }
+  bool IsUnaryOp(LongVectorUnaryOpType OpType) const {
+    if(OpType == 1337)
+      return false;
+    return true;
+  }
+  bool IsUnaryOp(LongVectorBinaryOpType OpType) const {
+    if(OpType == 1337)
+      return false;
+    return false;
+  }
+  bool IsUnaryOp(LongVectorTrigonometricOpType OpType) const {
+    if(OpType == 1337)
+      return false;
+    return true;
+  }
+  bool IsScalarOp(LongVectorUnaryOpType OpType) const {
+    // Unary ops can never be scalar ops. 
+    if(OpType == 1337)
+      return false;
+    return false;
+  }
+  bool IsScalarOp(LongVectorBinaryOpType OpType) const {
+    switch (OpType) {
+      case LongVectorBinaryOpType_ScalarAdd:
+      case LongVectorBinaryOpType_ScalarMultiply:
+      case LongVectorBinaryOpType_ScalarMin:
+      case LongVectorBinaryOpType_ScalarMax:
+        return true;
+      default:
+        return false;
+      };
+  }
+  bool IsScalarOp(LongVectorTrigonometricOpType OpType) const {
+    if(OpType == 1337)
+      return false;
+    return false;
+  }
+
+  bool HasInputArguments(LongVectorUnaryOpType OpType) const {
+    if(OpType == LongVectorUnaryOpType_Clamp) {
+      return true;
+    }
+
+    return false;
+  }
+  bool HasInputArguments(LongVectorBinaryOpType OpType) const {
+    if(OpType == 1337)
+      return false;
+    return false;
+  }
+  bool HasInputArguments(LongVectorTrigonometricOpType OpType) const {
+    if(OpType == 1337) {
+      return false;
+    }
+
+    return false;
+  }
+
   bool IsBinaryOp() const {
-    return BinaryOpType != LongVectorBinaryOpType_EnumValueCount;
+    return IsBinaryOp(OpTypeTraits.OpType);
   }
 
   bool IsUnaryOp() const {
-    return UnaryOpType != LongVectorUnaryOpType_EnumValueCount;
+    return IsUnaryOp(OpTypeTraits.OpType);
   }
 
   bool IsScalarOp() const {
-    switch (BinaryOpType) {
-    case LongVectorBinaryOpType_ScalarAdd:
-    case LongVectorBinaryOpType_ScalarMultiply:
-    case LongVectorBinaryOpType_ScalarMin:
-    case LongVectorBinaryOpType_ScalarMax:
-      return true;
-    default:
-      return false;
-    };
+    return IsScalarOp(OpTypeTraits.OpType);
   }
 
   bool HasInputArguments() const {
-    switch (UnaryOpType) {
-    case LongVectorUnaryOpType_Clamp:
-      return true;
-    default:
-      return false;
-    }
+    return HasInputArguments(OpTypeTraits.OpType);
   }
 
   // A helper to get the hlsl type as a string for a given C++ type.
@@ -291,7 +444,7 @@ public:
 
   T ComputeExpectedValue(const T &A, const T &B) const {
     if (IsBinaryOp()) {
-      switch (BinaryOpType) {
+      switch (static_cast<LongVectorBinaryOpType>(OpTypeTraits.OpType)) {
       case LongVectorBinaryOpType_ScalarAdd:
         return A + B;
       case LongVectorBinaryOpType_ScalarMultiply:
@@ -309,12 +462,12 @@ public:
       case LongVectorBinaryOpType_ScalarMax:
         return std::max(A, B);
       default:
-        LogErrorFmtThrow(L"Unknown LongVectorBinaryOpType: %d", BinaryOpType);
+        LogErrorFmtThrow(L"Unknown LongVectorBinaryOpType: %d", OpTypeTraits.OpType);
       }
     } else {
       LogErrorFmtThrow(L"ComputeExpectedValue(const T &A, const T &B) called "
                        L"for a unary op.: %d",
-                       UnaryOpType);
+                       OpTypeTraits.OpType);
     }
 
     return T();
@@ -322,25 +475,78 @@ public:
 
   T ComputeExpectedValue(const T &A) const {
     if (IsUnaryOp()) {
-      switch (UnaryOpType) {
+      switch (static_cast<LongVectorUnaryOpType>(OpTypeTraits.OpType)) {
       case LongVectorUnaryOpType_Clamp: {
         std::vector<T> ArgsArray = GetInputArgsArray();
         T Min = ArgsArray[0];
         T Max = ArgsArray[1];
         return std::clamp(A, Min, Max);
-      }
+      };
       case LongVectorUnaryOpType_Initialize:
         return A;
       default:
-        LogErrorFmtThrow(L"Unknown LongVectorUnaryOpType :%d", UnaryOpType);
+        LogErrorFmtThrow(L"Unknown LongVectorUnaryOpType :%d", OpTypeTraits.OpType);
       }
     } else {
       LogErrorFmtThrow(
           L"ComputeExpectedValue(const T &A) called for a binary op: %d",
-          BinaryOpType);
+          OpTypeTraits.OpType);
     }
 
     return T();
+  }
+
+  template <std::size_t N>
+  std::array<T, N>
+  ComputeExpectedValues(const std::array<T, N> &InputVector1,
+                        const std::array<T, N> &InputVector2) {
+  
+    VERIFY_IS_TRUE(
+        IsBinaryOp(),
+        L"ComputeExpectedValues() called with a non-binary op config.");
+  
+    std::array<T, N> ExpectedValues = {};
+  
+    for (size_t i = 0; i < N; ++i) {
+      ExpectedValues[i] =
+          ComputeExpectedValue(InputVector1[i], InputVector2[i]);
+    }
+  
+    return ExpectedValues;
+  }
+  
+  template <std::size_t N>
+  std::array<T, N>
+  ComputeExpectedValues(const std::array<T, N> &InputVector1,
+                        const T &ScalarInput) {
+  
+    VERIFY_IS_TRUE(IsScalarOp(), L"ComputeExpectedValues() called with a "
+                                        L"non-binary non-scalar op config.");
+  
+    std::array<T, N> ExpectedValues = {};
+  
+    for (size_t i = 0; i < N; ++i) {
+      ExpectedValues[i] =
+          ComputeExpectedValue(InputVector1[i], ScalarInput);
+    }
+  
+    return ExpectedValues;
+  }
+  
+  template <std::size_t N>
+  std::array<T, N>
+  ComputeExpectedValues(const std::array<T, N> &InputVector1) {
+  
+    VERIFY_IS_TRUE(IsUnaryOp(),
+                   L"ComputeExpectedValues() called with a non-unary op config.");
+  
+    std::array<T, N> ExpectedValues = {};
+  
+    for (size_t i = 0; i < N; ++i) {
+      ExpectedValues[i] = ComputeExpectedValue(InputVector1[i]);
+    }
+  
+    return ExpectedValues;
   }
 
   void SetInputArgsArrayName(const std::wstring &InputArgsArrayName) {
@@ -365,7 +571,7 @@ public:
 
     std::wstring LocalInputArgsArrayName = InputArgsArrayName;
 
-    if (UnaryOpType == LongVectorUnaryOpType_Clamp &&
+    if (IsClampOp() &&
         LocalInputArgsArrayName == L"") {
       LocalInputArgsArrayName = L"DefaultClampArgs";
     }
@@ -374,7 +580,7 @@ public:
       VERIFY_FAIL("No args array name set.");
 
     if (std::is_same_v<T, HLSLBool_t> &&
-        UnaryOpType == LongVectorUnaryOpType_Clamp)
+        IsClampOp())
       VERIFY_FAIL("Clamp is not supported for bools.");
     else
       return GetInputValueSetByKey<T>(LocalInputArgsArrayName);
@@ -383,9 +589,12 @@ public:
     return std::vector<T>();
   }
 
-  LongVectorBinaryOpType GetBinaryOpType() const { return BinaryOpType; }
-
-  LongVectorUnaryOpType GetUnaryOpType() const { return UnaryOpType; }
+  // TODO: Get rid of this.
+  bool IsClampOp() const {
+    if (IsUnaryOp() && OpTypeTraits.OpType == LongVectorUnaryOpType_Clamp)
+      return true;
+    return false;
+  }
 
   float GetTolerance() const { return Tolerance; }
 
@@ -418,7 +627,8 @@ public:
       CompilerOptions << IntrinsicString;
       CompilerOptions << " -DOPERAND2=";
 
-      switch (GetUnaryOpType()) {
+      // TODO: Fix this. Casting here is gross.
+      switch (static_cast<LongVectorUnaryOpType>(OpTypeTraits.OpType)) {
       case LongVectorUnaryOpType_Clamp:
         CompilerOptions << "ClampArgMinMax";
         CompilerOptions << " -DFUNC_CLAMP=1";
@@ -454,12 +664,46 @@ private:
   std::string IntrinsicString;
   // Optional, can be used to override shader code.
   float Tolerance = 0.0;
-  LongVectorBinaryOpType BinaryOpType = LongVectorBinaryOpType_EnumValueCount;
-  LongVectorUnaryOpType UnaryOpType = LongVectorUnaryOpType_EnumValueCount;
+  LongVectorOpTypeTraits<U> OpTypeTraits;
   std::wstring InputValueSetName1 = L"DefaultInputValueSet1";
   std::wstring InputValueSetName2 = L"DefaultInputValueSet2";
   std::wstring InputArgsArrayName = L""; // No default args array
 };
+
+//template <typename T>
+//class LongVectorOpTestConfig<T, LongVectorTrigonometricOpType> : public LongVectorOpTestConfig<T, LongVectorTrigonometricOpType> {
+//  public:
+//  T ComputeExpectedValue(const T &A) const;
+//};
+//
+//template <typename T>
+//T LongVectorOpTestConfig<T, LongVectorTrigonometricOpType>::ComputeExpectedValue(const T&A) const {
+//      switch (static_cast<L, U>(OpTypeTraits.OpType)) {
+//      case LongVectorUnaryOpType_Acos:
+//        return std::acos(A);
+//      case LongVectorUnaryOpType_Asin:
+//        return std::asin(A);
+//      case LongVectorUnaryOpType_Atan:
+//        return std::atan(A);
+//      case LongVectorUnaryOpType_Cos:
+//        return std::cos(A);
+//      case LongVectorUnaryOpType_Cosh:
+//        return std::cosh(A);
+//      case LongVectorUnaryOpType_Sin:
+//        return std::sin(A);
+//      case LongVectorUnaryOpType_Sinh:
+//        return std::sinh(A);
+//      case LongVectorUnaryOpType_Tan:
+//        return std::tan(A);
+//      case LongVectorUnaryOpType_Tanh:
+//        return std::tanh(A);
+//      default:
+//        hlsl_test::LogErrorFmtThrow(L"Unknown LongVectorUnaryOpType :%d", OpTypeTraits.OpType);
+//        return T();
+//      }
+//
+//    return T();
+//}
 
 template <typename T> bool DoValuesMatch(T A, T B, float Tolerance) {
   if (Tolerance == 0.0f)
@@ -509,62 +753,6 @@ bool DoArraysMatch(const std::array<T, N> &ActualValues,
   }
 
   return false;
-}
-
-template <typename T, std::size_t N>
-std::array<T, N>
-ComputeExpectedValues(const std::array<T, N> &InputVector1,
-                      const std::array<T, N> &InputVector2,
-                      const LongVectorOpTestConfig<T> &Config) {
-
-  VERIFY_IS_TRUE(
-      Config.IsBinaryOp(),
-      L"ComputeExpectedValues() called with a non-binary op config.");
-
-  std::array<T, N> ExpectedValues = {};
-
-  for (size_t i = 0; i < N; ++i) {
-    ExpectedValues[i] =
-        Config.ComputeExpectedValue(InputVector1[i], InputVector2[i]);
-  }
-
-  return ExpectedValues;
-}
-
-template <typename T, std::size_t N>
-std::array<T, N>
-ComputeExpectedValues(const std::array<T, N> &InputVector1,
-                      const T &ScalarInput,
-                      const LongVectorOpTestConfig<T> &Config) {
-
-  VERIFY_IS_TRUE(Config.IsScalarOp(), L"ComputeExpectedValues() called with a "
-                                      L"non-binary non-scalar op config.");
-
-  std::array<T, N> ExpectedValues = {};
-
-  for (size_t i = 0; i < N; ++i) {
-    ExpectedValues[i] =
-        Config.ComputeExpectedValue(InputVector1[i], ScalarInput);
-  }
-
-  return ExpectedValues;
-}
-
-template <typename T, std::size_t N>
-std::array<T, N>
-ComputeExpectedValues(const std::array<T, N> &InputVector1,
-                      const LongVectorOpTestConfig<T> &Config) {
-
-  VERIFY_IS_TRUE(Config.IsUnaryOp(),
-                 L"ComputeExpectedValues() called with a non-unary op config.");
-
-  std::array<T, N> ExpectedValues = {};
-
-  for (size_t i = 0; i < N; ++i) {
-    ExpectedValues[i] = Config.ComputeExpectedValue(InputVector1[i]);
-  }
-
-  return ExpectedValues;
 }
 
 template <typename T, std::size_t N>

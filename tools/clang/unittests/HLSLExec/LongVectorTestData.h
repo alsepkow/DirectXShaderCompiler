@@ -3,6 +3,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <Verify.h>
 
 // A helper struct because C++ bools are 1 byte and HLSL bools are 4 bytes.
 // Take int32_t as a constuctor argument and convert it to bool when needed.
@@ -78,6 +79,11 @@ struct HLSLHalf_t {
                            L"meant for cases when initializing to 0.");
     const float F = static_cast<float>(I);
     Val = DirectX::PackedVector::XMConvertFloatToHalf(F);
+  }
+
+  // So we can pass HLSLHalf_t to functions that take float such as std::tan()
+  operator double() const {
+    return DirectX::PackedVector::XMConvertHalfToFloat(Val);
   }
 
   bool operator==(const HLSLHalf_t &Other) const { return Val == Other.Val; }
