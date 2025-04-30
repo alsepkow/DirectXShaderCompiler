@@ -229,6 +229,43 @@ public:
     case LongVectorUnaryOpType_Initialize:
       IntrinsicString = "TestInitialize";
       break;
+    case LongVectorUnaryOpType_Acos:
+      OperatorString = ",";
+      IntrinsicString = "acos";
+      break;
+    case LongVectorUnaryOpType_Asin:
+      OperatorString = ",";
+      IntrinsicString = "asin";
+      break;
+    case LongVectorUnaryOpType_Atan:
+      OperatorString = ",";
+      IntrinsicString = "atan";
+      break;
+    case LongVectorUnaryOpType_Cos:
+      OperatorString = ",";
+      IntrinsicString = "cos";
+      break;
+    case LongVectorUnaryOpType_Cosh:
+      OperatorString = ",";
+      IntrinsicString = "cosh";
+      break;
+    case LongVectorUnaryOpType_Sin:
+      OperatorString = ",";
+      IntrinsicString = "sin";
+      break;
+    case LongVectorUnaryOpType_Sinh:
+      OperatorString = ",";
+      IntrinsicString = "sinh";
+      break;
+    case LongVectorUnaryOpType_Tan:
+      OperatorString = ",";
+      IntrinsicString = "tan";
+      break;
+    case LongVectorUnaryOpType_Tanh:
+      OperatorString = ",";
+      IntrinsicString = "tanh";
+      break;
+
     default:
       VERIFY_FAIL("Invalid LongVectorBinaryOpType");
     }
@@ -333,11 +370,6 @@ public:
       return false;
     return false;
   }
-  bool IsBinaryOp(LongVectorTrigonometricOpType OpType) const {
-    if(OpType == 1337)
-      return false;
-    return false;
-  }
   bool IsUnaryOp(LongVectorUnaryOpType OpType) const {
     if(OpType == 1337)
       return false;
@@ -347,11 +379,6 @@ public:
     if(OpType == 1337)
       return false;
     return false;
-  }
-  bool IsUnaryOp(LongVectorTrigonometricOpType OpType) const {
-    if(OpType == 1337)
-      return false;
-    return true;
   }
   bool IsScalarOp(LongVectorUnaryOpType OpType) const {
     // Unary ops can never be scalar ops. 
@@ -370,11 +397,6 @@ public:
         return false;
       };
   }
-  bool IsScalarOp(LongVectorTrigonometricOpType OpType) const {
-    if(OpType == 1337)
-      return false;
-    return false;
-  }
 
   bool HasInputArguments(LongVectorUnaryOpType OpType) const {
     if(OpType == LongVectorUnaryOpType_Clamp) {
@@ -386,13 +408,6 @@ public:
   bool HasInputArguments(LongVectorBinaryOpType OpType) const {
     if(OpType == 1337)
       return false;
-    return false;
-  }
-  bool HasInputArguments(LongVectorTrigonometricOpType OpType) const {
-    if(OpType == 1337) {
-      return false;
-    }
-
     return false;
   }
 
@@ -484,6 +499,24 @@ public:
       };
       case LongVectorUnaryOpType_Initialize:
         return A;
+      //case LongVectorUnaryOpType_Acos:
+      //  return std::acos(A);
+      //case LongVectorUnaryOpType_Asin:
+      //  return std::asin(A);
+      //case LongVectorUnaryOpType_Atan:
+      //  return std::atan(A);
+      //case LongVectorUnaryOpType_Cos:
+      //  return std::cos(A);
+      //case LongVectorUnaryOpType_Cosh:
+      //  return std::cosh(A);
+      //case LongVectorUnaryOpType_Sin:
+      //  return std::sin(A);
+      //case LongVectorUnaryOpType_Sinh:
+      //  return std::sinh(A);
+      //case LongVectorUnaryOpType_Tan:
+      //  return std::tan(A);
+      //case LongVectorUnaryOpType_Tanh:
+      //  return std::tanh(A);
       default:
         LogErrorFmtThrow(L"Unknown LongVectorUnaryOpType :%d", OpTypeTraits.OpType);
       }
@@ -670,40 +703,41 @@ private:
   std::wstring InputArgsArrayName = L""; // No default args array
 };
 
-//template <typename T>
-//class LongVectorOpTestConfig<T, LongVectorTrigonometricOpType> : public LongVectorOpTestConfig<T, LongVectorTrigonometricOpType> {
-//  public:
-//  T ComputeExpectedValue(const T &A) const;
-//};
-//
-//template <typename T>
-//T LongVectorOpTestConfig<T, LongVectorTrigonometricOpType>::ComputeExpectedValue(const T&A) const {
-//      switch (static_cast<L, U>(OpTypeTraits.OpType)) {
-//      case LongVectorUnaryOpType_Acos:
-//        return std::acos(A);
-//      case LongVectorUnaryOpType_Asin:
-//        return std::asin(A);
-//      case LongVectorUnaryOpType_Atan:
-//        return std::atan(A);
-//      case LongVectorUnaryOpType_Cos:
-//        return std::cos(A);
-//      case LongVectorUnaryOpType_Cosh:
-//        return std::cosh(A);
-//      case LongVectorUnaryOpType_Sin:
-//        return std::sin(A);
-//      case LongVectorUnaryOpType_Sinh:
-//        return std::sinh(A);
-//      case LongVectorUnaryOpType_Tan:
-//        return std::tan(A);
-//      case LongVectorUnaryOpType_Tanh:
-//        return std::tanh(A);
-//      default:
-//        hlsl_test::LogErrorFmtThrow(L"Unknown LongVectorUnaryOpType :%d", OpTypeTraits.OpType);
-//        return T();
-//      }
-//
-//    return T();
-//}
+HLSLHalf_t LongVectorOpTestConfig<HLSLHalf_t, LongVectorUnaryOpType>::ComputeExpectedValue(const HLSLHalf_t &A) const {
+      switch (static_cast<LongVectorUnaryOpType>(OpTypeTraits.OpType)) {
+      case LongVectorUnaryOpType_Clamp: {
+        std::vector<T> ArgsArray = GetInputArgsArray();
+        T Min = ArgsArray[0];
+        T Max = ArgsArray[1];
+        return std::clamp(A, Min, Max);
+      };
+      case LongVectorUnaryOpType_Initialize:
+        return A;
+      case LongVectorUnaryOpType_Acos:
+        return std::acos(A);
+      case LongVectorUnaryOpType_Asin:
+        return std::asin(A);
+      case LongVectorUnaryOpType_Atan:
+        return std::atan(A);
+      case LongVectorUnaryOpType_Cos:
+        return std::cos(A);
+      case LongVectorUnaryOpType_Cosh:
+        return std::cosh(A);
+      case LongVectorUnaryOpType_Sin:
+        return std::sin(A);
+      case LongVectorUnaryOpType_Sinh:
+        return std::sinh(A);
+      case LongVectorUnaryOpType_Tan:
+        return std::tan(A);
+      case LongVectorUnaryOpType_Tanh:
+        return std::tanh(A);
+      default:
+        hlsl_test::LogErrorFmtThrow(L"Unknown LongVectorUnaryOpType :%d", OpTypeTraits.OpType);
+        return HLSLHalf_t();
+      }
+
+    return HLSLHalf_t();
+}
 
 template <typename T> bool DoValuesMatch(T A, T B, float Tolerance) {
   if (Tolerance == 0.0f)
