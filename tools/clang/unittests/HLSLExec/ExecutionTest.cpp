@@ -516,7 +516,7 @@ public:
   BEGIN_TEST_METHOD(LongVector_TrigonometricOpTest)
   TEST_METHOD_PROPERTY(
       L"DataSource",
-      L"Table:ShaderOpArithTable.xml#LongVectorUnaryOpTable_Trigonometric")
+      L"Table:ShaderOpArithTable.xml#LongVector_TrigonometricOpTable")
   END_TEST_METHOD()
 
   BEGIN_TEST_METHOD(LongVector_UnaryOpTest)
@@ -11157,7 +11157,7 @@ TEST_F(ExecutionTest, LongVector_BinaryOpTest) {
   std::wstring DataType(Handler.GetTableParamByName(L"DataType")->m_str);
   std::wstring OpTypeString(Handler.GetTableParamByName(L"OpTypeEnum")->m_str);
 
-  auto OpType = GetLongVectorBinaryOpType(OpTypeString);
+  auto OpType = LongVector::GetBinaryOpType(OpTypeString);
   LongVectorOpTestDispatchByDataType(OpType, DataType, Handler);
 }
 
@@ -11172,7 +11172,7 @@ TEST_F(ExecutionTest, LongVector_TrigonometricOpTest) {
   std::wstring DataType(Handler.GetTableParamByName(L"DataType")->m_str);
   std::wstring OpTypeString(Handler.GetTableParamByName(L"OpTypeEnum")->m_str);
 
-  auto OpType = GetLongVectorTrigonometricOpType(OpTypeString);
+  auto OpType = LongVector::GetTrigonometricOpType(OpTypeString);
   LongVectorOpTestDispatchByDataType(OpType, DataType, Handler);
 }
 
@@ -11187,7 +11187,7 @@ TEST_F(ExecutionTest, LongVector_UnaryOpTest) {
   std::wstring DataType(Handler.GetTableParamByName(L"DataType")->m_str);
   std::wstring OpTypeString(Handler.GetTableParamByName(L"OpTypeEnum")->m_str);
 
-  auto OpType = GetLongVectorUnaryOpType(OpTypeString);
+  auto OpType = LongVector::GetUnaryOpType(OpTypeString);
   LongVectorOpTestDispatchByDataType(OpType, DataType, Handler);
 }
 
@@ -11281,7 +11281,7 @@ void ExecutionTest::LongVectorOpTestBase(
   CComPtr<ID3D12Device> D3DDevice;
   if (!CreateDevice(&D3DDevice, D3D_SHADER_MODEL_6_9)) {
 #ifdef _HLK_CONF
-    LogErrorFmtThrow(L"Device does not support SM 6.9. Can't run these tests.");
+    LOG_ERROR_FMT_THROW(L"Device does not support SM 6.9. Can't run these tests.");
 #else
     WEX::Logging::Log::Comment(
         "Device does not support SM 6.9. Can't run these tests.");
@@ -11408,7 +11408,7 @@ void ExecutionTest::LongVectorOpTestBase(
           return;
         }
 
-        LogErrorFmtThrow(
+        LOG_ERROR_FMT_THROW(
             L"RunShaderOpTest CallBack. Unexpected Resource Name: %S", Name);
       });
 
