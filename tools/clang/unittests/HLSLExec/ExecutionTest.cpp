@@ -11420,7 +11420,7 @@ void ExecutionTest::LongVectorOpTestBase(
   FillLongVectorDataFromShaderBuffer<T, N>(ShaderOutData, OutputVector);
 
   VERIFY_SUCCEEDED(DoArraysMatch<T>(OutputVector, ExpectedVector,
-                                    TestConfig.GetTolerance()));
+                                    TestConfig.GetTolerance(), TestConfig.GetValidationType()));
 }
 
 // This test expects a <pShader> that retrieves a signal value from each of a
