@@ -18,8 +18,7 @@ DataTypeT LongVector::GetLongVectorOpType(const LongVectorOpTypeStringToEnumValu
 // copying HLSL*_t types so we can copy the underlying type directly instead of
 // the struct.
 template <typename DataTypeT>
-void LongVector::FillShaderBufferFromLongVectorData(std::vector<BYTE> &ShaderBuffer,
-                                        std::vector<DataTypeT> &TestData) {
+void LongVector::FillShaderBufferFromLongVectorData(std::vector<BYTE> &ShaderBuffer, std::vector<DataTypeT> &TestData) {
 
   // Note: DataSize for HLSLHalf_t and HLSLBool_t may be larger than the
   // underlying type in some cases. Thats fine. Resize just makes sure we have
@@ -66,9 +65,7 @@ template <> double LongVector::Mod(const double &A, const double &B) {
 // Helper to fill the test data from the shader buffer based on type. Convenient
 // to be used when copying HLSL*_t types so we can use the underlying type.
 template <typename DataTypeT>
-void LongVector::FillLongVectorDataFromShaderBuffer(MappedData &ShaderBuffer,
-                                        std::vector<DataTypeT> &TestData,
-                                        size_t NumElements) {
+void LongVector::FillLongVectorDataFromShaderBuffer(MappedData &ShaderBuffer, std::vector<DataTypeT> &TestData, size_t NumElements) {
   if constexpr (std::is_same_v<DataTypeT, HLSLHalf_t>) {
     DirectX::PackedVector::HALF *ShaderBufferPtr =
         reinterpret_cast<DirectX::PackedVector::HALF *>(ShaderBuffer.data());
@@ -98,7 +95,7 @@ bool LongVector::DoValuesMatch(DataTypeT A, DataTypeT B, float Tolerance,
     return A == B;
 
   DataTypeT Diff = A > B ? A - B : B - A;
-  return Diff > Tolerance;
+  return Diff <= Tolerance;
 }
 
 bool LongVector::DoValuesMatch(HLSLBool_t A, HLSLBool_t B, float,
@@ -154,7 +151,6 @@ bool LongVector::DoValuesMatch(double A, double B, float Tolerance,
   }
 }
 
-
 template <typename DataTypeT>
 bool LongVector::DoVectorsMatch(const std::vector<DataTypeT> &ActualValues,
                     const std::vector<DataTypeT> &ExpectedValues,
@@ -187,59 +183,69 @@ bool LongVector::DoVectorsMatch(const std::vector<DataTypeT> &ActualValues,
   return false;
 }
 
+
+// A helper to fill the expected vector with computed values. Lets us factor out
+// the re-used std::get_if code and the for loop.
+template <typename DataTypeT, typename ComputeFnT>
+void FillExpectedVector(LongVector::VariantVector& ExpectedVector, size_t Count,
+ComputeFnT ComputeFn) {
+  auto* TypedExpectedValues = std::get_if<std::vector<DataTypeT>>(&ExpectedVector);
+
+  VERIFY_IS_NOT_NULL(TypedExpectedValues);
+
+  for (size_t Index = 0; Index < Count; ++Index) {
+    TypedExpectedValues->push_back(ComputeFn(Index));
+  }
+}
+
 template <typename DataTypeT, typename LongVectorOpTypeT>
-std::vector<DataTypeT> LongVector::ComputeExpectedValues(
+void LongVector::ComputeExpectedValues(
     const std::vector<DataTypeT> &InputVector1,
     const std::vector<DataTypeT> &InputVector2,
-    const LongVector::TestConfig<DataTypeT, LongVectorOpTypeT> &Config) {
+    LongVector::TestConfig<DataTypeT, LongVectorOpTypeT> &Config) {
 
   VERIFY_IS_TRUE(
       Config.IsBinaryOp(),
       L"ComputeExpectedValues() called with a non-binary op config.");
 
-  std::vector<DataTypeT> ExpectedValues = {};
-
-  for (size_t i = 0; i < InputVector1.size(); ++i) {
-    ExpectedValues.push_back(
-        Config.ComputeExpectedValue(InputVector1[i], InputVector2[i]));
-  }
-
-  return ExpectedValues;
+  FillExpectedVector<DataTypeT>(Config.GetExpectedVector(), InputVector1.size(),
+    [&](size_t Index) {
+      return Config.ComputeExpectedValue(InputVector1[Index],
+                                         InputVector2[Index]);
+    });
 }
 
 template <typename DataTypeT, typename LongVectorOpTypeT>
-std::vector<DataTypeT> LongVector::ComputeExpectedValues(
+void LongVector::ComputeExpectedValues(
     const std::vector<DataTypeT> &InputVector1, const DataTypeT &ScalarInput,
-    const LongVector::TestConfig<DataTypeT, LongVectorOpTypeT> &Config) {
+    LongVector::TestConfig<DataTypeT, LongVectorOpTypeT> &Config) {
 
   VERIFY_IS_TRUE(Config.IsScalarOp(), L"ComputeExpectedValues() called with a "
                                       L"non-binary non-scalar op config.");
 
-  std::vector<DataTypeT> ExpectedValues;
-
-  for (size_t i = 0; i < InputVector1.size(); ++i) {
-    ExpectedValues.push_back(
-        Config.ComputeExpectedValue(InputVector1[i], ScalarInput));
-  }
-
-  return ExpectedValues;
+  FillExpectedVector<DataTypeT>(Config.GetExpectedVector(), InputVector1.size(),
+    [&](size_t Index) {
+      return Config.ComputeExpectedValue(InputVector1[Index], ScalarInput);
+    });
 }
 
 template <typename DataTypeT, typename LongVectorOpTypeT>
-std::vector<DataTypeT> LongVector::ComputeExpectedValues(
+void LongVector::ComputeExpectedValues(
     const std::vector<DataTypeT> &InputVector1,
-    const LongVector::TestConfig<DataTypeT, LongVectorOpTypeT> &Config) {
+    LongVector::TestConfig<DataTypeT, LongVectorOpTypeT> &Config) {
 
   VERIFY_IS_TRUE(Config.IsUnaryOp(),
                  L"ComputeExpectedValues() called with a non-unary op config.");
-
-  std::vector<DataTypeT> ExpectedValues;
-
-  for (size_t i = 0; i < InputVector1.size(); ++i) {
-    ExpectedValues.push_back(Config.ComputeExpectedValue(InputVector1[i]));
+  
+  if (Config.IsAsTypeOp()) {
+    Config.ComputeExpectedValuesForAsTypeOp(InputVector1);
   }
-
-  return ExpectedValues;
+  else {
+    FillExpectedVector<DataTypeT>(Config.GetExpectedVector(), InputVector1.size(),
+      [&](size_t Index) {
+        return Config.ComputeExpectedValue(InputVector1[Index]);
+      });
+  }
 }
 
 template <typename DataTypeT>
@@ -294,8 +300,30 @@ LongVector::TestConfig<DataTypeT, LongVectorOpTypeT>::TestConfig(LongVector::Una
   case LongVector::UnaryOpType_Initialize:
     IntrinsicString = "TestInitialize";
     break;
-  default:
-    VERIFY_FAIL("Invalid UnaryOpType");
+  case LongVector::UnaryOpType_AsFloat:
+    IntrinsicString = "asfloat";
+    ExpectedVector = std::vector<float>{};
+    break;
+  case LongVector::UnaryOpType_AsFloat16:
+    IntrinsicString = "asfloat16";
+    ExpectedVector = std::vector<HLSLHalf_t>{};
+    break;
+  case LongVector::UnaryOpType_AsInt:
+    IntrinsicString = "asint";
+    ExpectedVector = std::vector<int32_t>{};
+    break;
+  case LongVector::UnaryOpType_AsInt16:
+    IntrinsicString = "asint16";
+    ExpectedVector = std::vector<int16_t>{};
+    break;
+  case LongVector::UnaryOpType_AsUint:
+    IntrinsicString = "asuint";
+    ExpectedVector = std::vector<uint32_t>{};
+    break;
+  case LongVector::UnaryOpType_AsUint16:
+    IntrinsicString = "asuint16";
+    ExpectedVector = std::vector<uint16_t>{};
+    break;
   }
 }
 
@@ -449,8 +477,8 @@ std::string LongVector::TestConfig<DataTypeT, LongVectorOpTypeT>::GetOPERAND2Str
   return std::string("");
 }
 
-template <typename DataTypeT, typename LongVectorOpTypeT>
-std::string LongVector::TestConfig<DataTypeT, LongVectorOpTypeT>::GetHLSLTypeString() const {
+template <typename DataTypeT>
+std::string LongVector::GetHLSLTypeString() {
   if (std::is_same_v<DataTypeT, HLSLBool_t>)
     return "bool";
   if (std::is_same_v<DataTypeT, HLSLHalf_t>)
@@ -476,6 +504,97 @@ std::string LongVector::TestConfig<DataTypeT, LongVectorOpTypeT>::GetHLSLTypeStr
   ErrStr.append(typeid(DataTypeT).name());
   VERIFY_IS_TRUE(false, ErrStr.c_str());
   return "UnknownType";
+}
+
+template <typename DataTypeT, typename LongVectorOpTypeT>
+std::string LongVector::TestConfig<DataTypeT, LongVectorOpTypeT>::GetHLSLInputTypeString() const {
+  return LongVector::GetHLSLTypeString<DataTypeT>();
+}
+
+template <typename DataTypeT, typename LongVectorOpTypeT>
+std::string LongVector::TestConfig<DataTypeT, LongVectorOpTypeT>::GetHLSLOutputTypeString() const {
+
+  // Normal case, output matches input type ( DataTypeT )
+  if (auto* Vec = std::get_if<std::vector<DataTypeT>>(&ExpectedVector))
+    return LongVector::GetHLSLTypeString<DataTypeT>();
+
+  // The unary AsType ops have a different output type.
+  if ( IsUnaryOp() ) {
+    auto OpType = static_cast<LongVector::UnaryOpType>(OpTypeTraits.OpType);
+    switch (OpType) {
+      case LongVector::UnaryOpType_AsFloat16:
+        return LongVector::GetHLSLTypeString<HLSLHalf_t>();
+      case LongVector::UnaryOpType_AsFloat:
+        return LongVector::GetHLSLTypeString<float>();
+      case LongVector::UnaryOpType_AsInt:
+        return LongVector::GetHLSLTypeString<int32_t>();
+      case LongVector::UnaryOpType_AsInt16:
+        return LongVector::GetHLSLTypeString<int16_t>();
+      case LongVector::UnaryOpType_AsUint:
+        return LongVector::GetHLSLTypeString<uint32_t>();
+      case LongVector::UnaryOpType_AsUint16:
+        return LongVector::GetHLSLTypeString<uint16_t>();
+      default:
+        LOG_ERROR_FMT_THROW(L"GetHLSLOutputTypeString() called with an unsupported op type: %d", OpType);
+        return std::string("UnknownType");
+    }
+  }
+
+  LOG_ERROR_FMT_THROW(L"GetHLSLOutputTypeString() called with an unsupported op type: %d", OpTypeTraits.OpType);
+  return std::string("UnknownType");
+}
+
+template <typename DataTypeT, typename LongVectorOpTypeT>
+void LongVector::TestConfig<DataTypeT, LongVectorOpTypeT>::ComputeExpectedValuesForAsTypeOp(
+    const std::vector<DataTypeT>& InputVector1) {
+
+  VERIFY_IS_TRUE(IsAsTypeOp(OpTypeTraits.OpType),
+                 L"ComputeExpectedValuesForAsTypeOp() called with a non-AsType op config.");
+
+  const auto OpType = static_cast<LongVector::UnaryOpType>(OpTypeTraits.OpType);
+
+  switch (OpType) {
+    case UnaryOpType_AsFloat16:
+      FillExpectedVector<HLSLHalf_t>(ExpectedVector, InputVector1.size(),
+        [&](size_t Index) { return AsFloat16(InputVector1[Index]); });
+      break;
+    case UnaryOpType_AsFloat:
+      FillExpectedVector<float>(ExpectedVector, InputVector1.size(),
+        [&](size_t Index) { return AsFloat(InputVector1[Index]); });
+      break;
+    case UnaryOpType_AsInt:
+      FillExpectedVector<int32_t>(ExpectedVector, InputVector1.size(),
+        [&](size_t Index) { return AsInt(InputVector1[Index]); });
+      break;
+    case UnaryOpType_AsInt16:
+      FillExpectedVector<int16_t>(ExpectedVector, InputVector1.size(),
+        [&](size_t Index) { return AsInt16(InputVector1[Index]); });
+      break;
+    case UnaryOpType_AsUint:
+      FillExpectedVector<uint32_t>(ExpectedVector, InputVector1.size(),
+        [&](size_t Index) { return AsUint(InputVector1[Index]); });
+      break;
+    case UnaryOpType_AsUint16:
+      FillExpectedVector<uint16_t>(ExpectedVector, InputVector1.size(),
+        [&](size_t Index) { return AsUint16(InputVector1[Index]); });
+      break;
+    default:
+      LOG_ERROR_FMT_THROW(L"Unsupported AsType op: %d", OpTypeTraits.OpType);
+  }
+}
+
+template <typename DataTypeT, typename LongVectorOpTypeT>
+bool LongVector::TestConfig<DataTypeT, LongVectorOpTypeT>::IsAsTypeOp(LongVector::UnaryOpType OpType) const {
+  if( OpType == LongVector::UnaryOpType_AsFloat ||
+      OpType == LongVector::UnaryOpType_AsFloat16 ||
+      OpType == LongVector::UnaryOpType_AsInt ||
+      OpType == LongVector::UnaryOpType_AsInt16 ||
+      OpType == LongVector::UnaryOpType_AsUint ||
+      OpType == LongVector::UnaryOpType_AsUint16) {
+    return true;
+  }
+
+  return false;
 }
 
 template <typename DataTypeT, typename LongVectorOpTypeT>
@@ -639,13 +758,13 @@ std::vector<DataTypeT>  LongVector::TestConfig<DataTypeT, LongVectorOpTypeT>::Ge
 template <typename DataTypeT, typename LongVectorOpTypeT>
 std::string LongVector::TestConfig<DataTypeT, LongVectorOpTypeT>::GetCompilerOptionsString(size_t VectorSize) const {
   std::stringstream CompilerOptions("");
-  std::string HLSLType = GetHLSLTypeString();
+  std::string HLSLInputType = GetHLSLInputTypeString();
   CompilerOptions << "-DTYPE=";
-  CompilerOptions << HLSLType;
+  CompilerOptions << HLSLInputType;
   CompilerOptions << " -DNUM=";
   CompilerOptions << VectorSize;
   const bool Is16BitType =
-      (HLSLType == "int16_t" || HLSLType == "uint16_t" || HLSLType == "half");
+      (HLSLInputType == "int16_t" || HLSLInputType == "uint16_t" || HLSLInputType == "half");
   CompilerOptions << (Is16BitType ? " -enable-16bit-types" : "");
   CompilerOptions << " -DOPERATOR=";
   CompilerOptions << OperatorString;
@@ -668,6 +787,10 @@ std::string LongVector::TestConfig<DataTypeT, LongVectorOpTypeT>::GetCompilerOpt
     CompilerOptions << GetOPERAND2String();
   }
 
+  std::string HLSLOutputType = GetHLSLOutputTypeString();
+  CompilerOptions << " -DOUT_TYPE=";
+  CompilerOptions << HLSLOutputType;
+
   return CompilerOptions.str();
 }
 
@@ -686,3 +809,63 @@ std::vector<DataTypeT> LongVector::TestConfig<DataTypeT, LongVectorOpTypeT>::Get
 
   return GetInputValueSetByKey<DataTypeT>(InputValueSetName);
 }
+
+template <typename DataTypeT, typename LongVectorOpTypeT>
+bool LongVector::TestConfig<DataTypeT, LongVectorOpTypeT>::ResolveOutputTypeAndVerifyOutput(MappedData &ShaderOutData, size_t NumElements) {
+
+  if constexpr (std::is_same_v<LongVectorOpTypeT, LongVector::UnaryOpType>) {
+    switch (static_cast<LongVector::UnaryOpType>(OpTypeTraits.OpType)) {
+    case LongVector::UnaryOpType_AsFloat:
+        return VerifyOutput<float>(ShaderOutData, NumElements);
+    case LongVector::UnaryOpType_AsFloat16:
+        return VerifyOutput<HLSLHalf_t>(ShaderOutData, NumElements);
+    case LongVector::UnaryOpType_AsInt:
+        return VerifyOutput<int32_t>(ShaderOutData, NumElements);
+    case LongVector::UnaryOpType_AsInt16:
+        return VerifyOutput<int16_t>(ShaderOutData, NumElements);
+    case LongVector::UnaryOpType_AsUint:
+        return VerifyOutput<uint32_t>(ShaderOutData, NumElements);
+    case LongVector::UnaryOpType_AsUint16:
+        return VerifyOutput<uint16_t>(ShaderOutData, NumElements);
+    default:
+      LOG_ERROR_FMT_THROW(L"VerifyOutput() called with an unsupported UnaryOpType: %d", OpTypeTraits.OpType);
+      return false;
+    }
+  }
+
+  // If you're hitting this, you probably need to add a case for a new
+  // LongVector::OpType
+  LOG_ERROR_FMT_THROW(L"ResolveOutputTypeAndVerifyOutput() called with unrecognized OpType: %d", OpTypeTraits.OpType);
+  return false;
+}
+
+template <typename DataTypeT, typename LongVectorOpTypeT>
+bool LongVector::TestConfig<DataTypeT, LongVectorOpTypeT>::VerifyOutput(MappedData &ShaderOutData, size_t NumElements) {
+
+  // First try the most common case where the output datatype matches the input
+  // datatype (DataTypeT). std::get_if will return a null pointer if the variant
+  // isn't holding a std::vector<DataTypeT>
+  if (auto TypedExpectedValues = std::get_if<std::vector<DataTypeT>>(&ExpectedVector)) {
+    return VerifyOutput<DataTypeT>(ShaderOutData, NumElements);
+  }
+
+  return ResolveOutputTypeAndVerifyOutput(ShaderOutData, NumElements);
+}
+
+template <typename DataTypeT, typename LongVectorOpTypeT>
+template <typename OutputDataTypeT>
+bool LongVector::TestConfig<DataTypeT, LongVectorOpTypeT>::VerifyOutput(MappedData &ShaderOutData, size_t NumElements) {
+
+  if (auto TypedExpectedValues = std::get_if<std::vector<OutputDataTypeT>>(&ExpectedVector)) {
+    std::vector<OutputDataTypeT> ActualValues;
+    FillLongVectorDataFromShaderBuffer(ShaderOutData, ActualValues, NumElements);
+    return DoVectorsMatch(ActualValues, *TypedExpectedValues, Tolerance, ValidationType);
+  }
+
+  // This is the private TestConfig::VerifyOutput, expected to only be used when
+  // DataTypeT and OutputDataTypeT are the same type. 
+  LOG_ERROR_FMT_THROW(L"Programmer Error? Expected vector type does not match the expected type: %s",
+                      typeid(OutputDataTypeT).name());
+  return false;
+}
+

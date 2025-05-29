@@ -193,7 +193,17 @@ void LongVector::OpTest::DispatchTestByVectorSize(
     }
   }
 
-  std::vector<size_t> InputVectorSizes = {3, 4, 5, 16, 17, 35, 100, 256, 1024};
+  // Manual override to test a specific vector size. Convenient for debugging issues.
+  size_t InputSizeToTestOverride = 0;
+  WEX::TestExecution::RuntimeParameters::TryGetValue(L"LongVectorInputSize",
+                                                     InputSizeToTestOverride);
+
+  std::vector<size_t> InputVectorSizes;
+  if(InputSizeToTestOverride)
+    InputVectorSizes.push_back(InputSizeToTestOverride);
+  else
+    InputVectorSizes = {3, 4, 5, 16, 17, 35, 100, 256, 1024};
+
   for (auto SizeToTest : InputVectorSizes) {
     TestBaseMethod<DataTypeT, LongVectorOpTypeT>(TestConfig, SizeToTest);
   }
@@ -256,20 +266,15 @@ void LongVector::OpTest::TestBaseMethod(
           InputVector2ValueSet[Index % InputVector2ValueSet.size()]);
   }
 
-  if (TestConfig.HasInputArguments()) {
+  if (TestConfig.HasInputArguments())
     InputArgsArray = TestConfig.GetInputArgsArray();
-  }
 
-  std::vector<DataTypeT> ExpectedVector;
-  ExpectedVector.reserve(VectorSizeToTest);
   if (IsVectorBinaryOp)
-    ExpectedVector =
-        ComputeExpectedValues(InputVector1, InputVector2, TestConfig);
+    ComputeExpectedValues(InputVector1, InputVector2, TestConfig);
   else if (TestConfig.IsScalarOp())
-    ExpectedVector =
-        ComputeExpectedValues(InputVector1, ScalarInput[0], TestConfig);
+    ComputeExpectedValues(InputVector1, ScalarInput[0], TestConfig);
   else // Must be a unary op
-    ExpectedVector = ComputeExpectedValues(InputVector1, TestConfig);
+    ComputeExpectedValues(InputVector1, TestConfig);
 
   if (LogInputs) {
     LogLongVector<DataTypeT>(InputVector1, L"InputVector1");
@@ -362,11 +367,11 @@ void LongVector::OpTest::TestBaseMethod(
   MappedData ShaderOutData;
   TestResult->Test->GetReadBackData("OutputVector", &ShaderOutData);
 
-  std::vector<DataTypeT> OutputVector;
-  FillLongVectorDataFromShaderBuffer<DataTypeT>(ShaderOutData, OutputVector,
-                                                VectorSizeToTest);
-
-  VERIFY_SUCCEEDED(DoVectorsMatch<DataTypeT>(OutputVector, ExpectedVector,
-                                             TestConfig.GetTolerance(),
-                                             TestConfig.GetValidationType()));
+  // The TestConfig object help handles more complicated verification cases. We
+  // pass in the MappedData instead of the typed data because the TestConfig may
+  // need to resolve the output type for test cases where the return type of the
+  // intrinsic being tested does not match the input type, such as the AsType*
+  // intrinsics (AsInt, AsInt16, AsFloat, ... etc).
+  VERIFY_SUCCEEDED(
+      TestConfig.VerifyOutput(ShaderOutData, VectorSizeToTest));
 }
