@@ -355,6 +355,9 @@ if( MSVC )
     append("/analyze" CMAKE_CXX_FLAGS)
   endif ()
 
+  # Use SHA-256 for compiler hash generation (affects checksum algorithms used by the compiler)
+  append("/ZH:SHA_256" CMAKE_C_FLAGS CMAKE_CXX_FLAGS)
+
   # Change release to always build debug information out-of-line, but
   # also enable Reference optimization, ie dead function elimination.
   if (NOT CMAKE_MSVC_DEBUG_INFORMATION_FORMAT)
