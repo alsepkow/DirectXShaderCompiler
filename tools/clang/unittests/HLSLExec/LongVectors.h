@@ -64,6 +64,11 @@ public:
                        L"Table:LongVectorOpTable.xml#AsTypeOpTable")
   END_TEST_METHOD()
 
+  BEGIN_TEST_METHOD(unaryMathOpTest)
+  TEST_METHOD_PROPERTY(L"DataSource",
+                       L"Table:LongVectorOpTable.xml#UnaryMathOpTable")
+  END_TEST_METHOD()
+
   template <typename LongVectorOpTypeT>
   void dispatchTestByDataType(LongVectorOpTypeT OpType, std::wstring DataType,
                               TableParameterHandler &Handler);
@@ -119,6 +124,7 @@ template <typename DataTypeT> std::string getHLSLTypeString();
 struct LongVectorOpTypeStringToEnumValue {
   std::wstring OpTypeString;
   uint32_t OpTypeValue;
+  std::wstring IntrinsicString;
 };
 
 template <typename DataTypeT>
@@ -255,6 +261,56 @@ static_assert(_countof(trigonometricOpTypeStringToEnumMap) ==
               "a new enum value?");
 
 TrigonometricOpType getTrigonometricOpType(const std::wstring &OpTypeString);
+
+enum UnaryMathOpType {
+  UnaryMathOpType_Abs,
+  UnaryMathOpType_Sign,
+  UnaryMathOpType_Ceil,
+  UnaryMathOpType_Floor,
+  UnaryMathOpType_Trunc,
+  UnaryMathOpType_Round,
+  UnaryMathOpType_Frac,
+  UnaryMathOpType_Sqrt,
+  UnaryMathOpType_Rsqrt,
+  UnaryMathOpType_Exp,
+  UnaryMathOpType_Exp2,
+  UnaryMathOpType_Log,
+  UnaryMathOpType_Log2,
+  UnaryMathOpType_Log10,
+  UnaryMathOpType_Rcp,
+  UnaryMathOpType_EnumValueCount
+};
+
+static const LongVectorOpTypeStringToEnumValue unaryMathOpTypeStringToEnumMap[] = {
+    {L"UnaryMathOpType_Abs", UnaryMathOpType_Abs},
+    {L"UnaryMathOpType_Sign", UnaryMathOpType_Sign},
+    {L"UnaryMathOpType_Ceil", UnaryMathOpType_Ceil},
+    {L"UnaryMathOpType_Floor", UnaryMathOpType_Floor},
+    {L"UnaryMathOpType_Trunc", UnaryMathOpType_Trunc},
+    {L"UnaryMathOpType_Round", UnaryMathOpType_Round},
+    {L"UnaryMathOpType_Frac", UnaryMathOpType_Frac},
+    {L"UnaryMathOpType_Sqrt", UnaryMathOpType_Sqrt},
+    {L"UnaryMathOpType_Rsqrt", UnaryMathOpType_Rsqrt},
+    {L"UnaryMathOpType_Exp", UnaryMathOpType_Exp},
+    {L"UnaryMathOpType_Exp2", UnaryMathOpType_Exp2},
+    {L"UnaryMathOpType_Log", UnaryMathOpType_Log},
+    {L"UnaryMathOpType_Log2", UnaryMathOpType_Log2},
+    {L"UnaryMathOpType_Log10", UnaryMathOpType_Log10},
+    {L"UnaryMathOpType_Rcp", UnaryMathOpType_Rcp},
+};
+
+static_assert(_countof(unaryMathOpTypeStringToEnumMap) ==
+                  UnaryMathOpType_EnumValueCount,
+              "unaryMathOpTypeStringToEnumMap size mismatch. Did you add "
+              "a new enum value?");
+
+static_assert(_countof(unaryMathOpTypeStringToEnumMap) ==
+                  UnaryMathOpType_EnumValueCount,
+              "unaryMathOpTypeStringToEnumMap size mismatch. Did you add "
+              "a new enum value?");
+
+UnaryMathOpType getUnaryMathOpType(const std::wstring &OpTypeString);
+
 
 template <typename DataTypeT>
 std::vector<DataTypeT> getInputValueSetByKey(const std::wstring &Key,
@@ -619,20 +675,52 @@ private:
 };
 
 template <typename DataTypeT>
-std::shared_ptr<LongVector::TestConfig<DataTypeT>>
-MakeTestConfig(UnaryOpType OpType);
+class TestConfigUnaryMath : public LongVector::TestConfig<DataTypeT> {
+public:
+  TestConfigUnaryMath(LongVector::UnaryMathOpType OpType);
+
+  void
+  computeExpectedValues(const std::vector<DataTypeT> &InputVector1) override;
+  DataTypeT computeExpectedValue(const DataTypeT &A) const override;
+
+private:
+
+  template <typename DataTypeInT>
+  int32_t sign(const DataTypeInT &A) const {
+    // Return 1 for positive, -1 for negative, 0 for zero.
+    // Wrap comparison operands in DataTypeInT constructor to make sure
+    // we are comparing the same type.
+    return A > DataTypeInT(0) ? 1 : A < DataTypeInT(0) ? -1 : 0;
+  }
+  template <>
+  int32_t sign(const HLSLBool_t &A) const {
+    // HLSLBool_t is not a valid input for sign.
+    LOG_ERROR_FMT_THROW(L"Programmer Error: sign() should not be called with HLSLBool_t");
+    return 0;
+  }
+
+  LongVector::UnaryMathOpType OpType = LongVector::UnaryMathOpType_EnumValueCount;
+};
 
 template <typename DataTypeT>
 std::shared_ptr<LongVector::TestConfig<DataTypeT>>
-MakeTestConfig(BinaryOpType OpType);
+makeTestConfig(UnaryOpType OpType);
 
 template <typename DataTypeT>
 std::shared_ptr<LongVector::TestConfig<DataTypeT>>
-MakeTestConfig(TrigonometricOpType OpType);
+makeTestConfig(BinaryOpType OpType);
 
 template <typename DataTypeT>
 std::shared_ptr<LongVector::TestConfig<DataTypeT>>
-MakeTestConfig(AsTypeOpType OpType);
+makeTestConfig(TrigonometricOpType OpType);
+
+template <typename DataTypeT>
+std::shared_ptr<LongVector::TestConfig<DataTypeT>>
+makeTestConfig(AsTypeOpType OpType);
+
+template <typename DataTypeT>
+std::shared_ptr<LongVector::TestConfig<DataTypeT>>
+makeTestConfig(UnaryMathOpType OpType);
 
 }; // namespace LongVector
 

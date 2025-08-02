@@ -781,4 +781,20 @@
         <Parameter Name="InputValueSetName1">SplitDoubleInputValueSet</Parameter>
       </Row>
     </Table>
+    <Table Id="UnaryMathOpTable">
+      <ParameterTypes>
+        <!-- InputValueSetName1 is optional. If no value is provided use the
+        default value set for the data type. This string is meant to be a key
+        value for the the array of std::pairs defined in LongVectorTestData.h
+        for the applicable DataTypeIn-->
+        <ParameterType Name="InputValueSetName1">String</ParameterType>
+        <ParameterType Name="DataTypeIn">String</ParameterType>
+        <ParameterType Name="OpTypeEnum">String</ParameterType>
+      </ParameterTypes>
+      <!-- AsTypeOpTable_AsType DataTypeIn: int16 -->
+      <Row Name="Abs_int16">
+        <Parameter Name="OpTypeEnum">UnaryMathOpType_Abs</Parameter>
+        <Parameter Name="DataTypeIn">int16</Parameter>
+      </Row>
+    </Table>
 </Data>

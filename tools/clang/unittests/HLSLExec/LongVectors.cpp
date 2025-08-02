@@ -2,20 +2,20 @@
 #include "HlslExecTestUtils.h"
 #include <iomanip>
 
-template <typename DataTypeT>
-DataTypeT
+template <typename LongVectorOpTypeT>
+LongVectorOpTypeT
 LongVector::getLongVectorOpType(const LongVectorOpTypeStringToEnumValue *Values,
                                 const std::wstring &OpTypeString,
                                 std::size_t Length) {
   for (size_t i = 0; i < Length; i++) {
     if (Values[i].OpTypeString == OpTypeString)
-      return static_cast<DataTypeT>(Values[i].OpTypeValue);
+      return static_cast<LongVectorOpTypeT>(Values[i].OpTypeValue);
   }
 
   LOG_ERROR_FMT_THROW(L"Invalid LongVectorOpType string: %s",
                       OpTypeString.c_str());
 
-  return static_cast<DataTypeT>(UINT_MAX);
+  return static_cast<LongVectorOpTypeT>(UINT_MAX);
 }
 
 LongVector::BinaryOpType
@@ -44,6 +44,13 @@ LongVector::getTrigonometricOpType(const std::wstring &OpTypeString) {
   return getLongVectorOpType<LongVector::TrigonometricOpType>(
       trigonometricOpTypeStringToEnumMap, OpTypeString,
       std::size(trigonometricOpTypeStringToEnumMap));
+}
+
+LongVector::UnaryMathOpType
+LongVector::getUnaryMathOpType(const std::wstring &OpTypeString) {
+  return getLongVectorOpType<LongVector::UnaryMathOpType>(
+      unaryMathOpTypeStringToEnumMap, OpTypeString,
+      std::size(unaryMathOpTypeStringToEnumMap));
 }
 
 // Helper to fill the test data from the shader buffer based on type. Convenient
@@ -357,6 +364,20 @@ TEST_F(LongVector::OpTest, asTypeOpTest) {
   dispatchTestByDataType(OpType, DataTypeIn, Handler);
 }
 
+TEST_F(LongVector::OpTest, unaryMathOpTest) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+      WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+
+  const int TableSize = sizeof(UnaryOpParameters) / sizeof(TableParameter);
+  TableParameterHandler Handler(UnaryOpParameters, TableSize);
+
+  std::wstring DataTypeIn(Handler.GetTableParamByName(L"DataTypeIn")->m_str);
+  std::wstring OpTypeString(Handler.GetTableParamByName(L"OpTypeEnum")->m_str);
+
+  auto OpType = LongVector::getUnaryMathOpType(OpTypeString);
+  dispatchTestByDataType(OpType, DataTypeIn, Handler);
+}
+
 template <typename LongVectorOpTypeT>
 void LongVector::OpTest::dispatchTestByDataType(
     LongVectorOpTypeT OpType, std::wstring DataType,
@@ -394,7 +415,7 @@ void LongVector::OpTest::dispatchTestByVectorLength(
   WEX::TestExecution::SetVerifyOutput verifySettings(
       WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
 
-  auto TestConfig = LongVector::MakeTestConfig<DataTypeT>(opType);
+  auto TestConfig = LongVector::makeTestConfig<DataTypeT>(opType);
 
   std::wstring OpTypeString(Handler.GetTableParamByName(L"OpTypeEnum")->m_str);
   TestConfig->setOpTypeNameForLogging(OpTypeString);
@@ -609,27 +630,33 @@ void LongVector::fillShaderBufferFromLongVectorData(
 
 template <typename DataTypeT>
 std::shared_ptr<LongVector::TestConfig<DataTypeT>>
-LongVector::MakeTestConfig(UnaryOpType OpType) {
+LongVector::makeTestConfig(UnaryOpType OpType) {
   return std::make_shared<LongVector::TestConfigUnary<DataTypeT>>(OpType);
 }
 
 template <typename DataTypeT>
 std::shared_ptr<LongVector::TestConfig<DataTypeT>>
-LongVector::MakeTestConfig(BinaryOpType OpType) {
+LongVector::makeTestConfig(BinaryOpType OpType) {
   return std::make_shared<LongVector::TestConfigBinary<DataTypeT>>(OpType);
 }
 
 template <typename DataTypeT>
 std::shared_ptr<LongVector::TestConfig<DataTypeT>>
-LongVector::MakeTestConfig(TrigonometricOpType OpType) {
+LongVector::makeTestConfig(TrigonometricOpType OpType) {
   return std::make_shared<LongVector::TestConfigTrigonometric<DataTypeT>>(
       OpType);
 }
 
 template <typename DataTypeT>
 std::shared_ptr<LongVector::TestConfig<DataTypeT>>
-LongVector::MakeTestConfig(AsTypeOpType OpType) {
+LongVector::makeTestConfig(AsTypeOpType OpType) {
   return std::make_shared<LongVector::TestConfigAsType<DataTypeT>>(OpType);
+}
+
+template <typename DataTypeT>
+std::shared_ptr<LongVector::TestConfig<DataTypeT>>
+LongVector::makeTestConfig(UnaryMathOpType OpType) {
+  return std::make_shared<LongVector::TestConfigUnaryMath<DataTypeT>>(OpType);
 }
 
 template <typename DataTypeT>
@@ -1050,6 +1077,9 @@ template <typename DataTypeT>
 DataTypeT LongVector::TestConfigTrigonometric<DataTypeT>::computeExpectedValue(
     const DataTypeT &A) const {
 
+  // TODO: What if i have a private override that takes only floats?
+  // And all other types resolve to a stub with an error.
+  //
   // We use constexpr to contrain to floating point types to prevent compile
   // time errors from attempting to resolve std lib trig functions which don't
   // have overloads for all non-floating point types. We can't use
@@ -1229,4 +1259,134 @@ DataTypeT LongVector::TestConfigBinary<DataTypeT>::computeExpectedValue(
     LOG_ERROR_FMT_THROW(L"Unknown BinaryOpType: %ls", OpTypeName.c_str());
     return DataTypeT();
   }
+}
+
+template <typename DataTypeT>
+LongVector::TestConfigUnaryMath<DataTypeT>::TestConfigUnaryMath(
+    LongVector::UnaryMathOpType OpType)
+    : OpType(OpType) {
+
+  BasicOpType = LongVector::BasicOpType_Unary;
+
+  if (isFloatingPointType<DataTypeT>()) {
+    Tolerance = 1;
+    ValidationType = LongVector::ValidationType_Ulp;
+  }
+
+  switch (OpType) {
+  case LongVector::UnaryMathOpType_Abs:
+    IntrinsicString = "abs";
+    break;
+  case LongVector::UnaryMathOpType_Sign:
+    IntrinsicString = "sign";
+    ExpectedVector = std::vector<int32_t>{};
+    break;
+  case LongVector::UnaryMathOpType_Ceil:
+    IntrinsicString = "ceil";
+    break;
+  case LongVector::UnaryMathOpType_Floor:
+    IntrinsicString = "floor";
+    break;
+  case LongVector::UnaryMathOpType_Trunc:
+    IntrinsicString = "trunc";
+    break;
+  case LongVector::UnaryMathOpType_Round:
+    IntrinsicString = "round";
+    break;
+  case LongVector::UnaryMathOpType_Frac:
+    IntrinsicString = "frac";
+    break;
+  case LongVector::UnaryMathOpType_Sqrt:
+    IntrinsicString = "sqrt";
+    break;
+  case LongVector::UnaryMathOpType_Rsqrt:
+    IntrinsicString = "rsqrt";
+    break;
+  case LongVector::UnaryMathOpType_Exp:
+    IntrinsicString = "exp";
+    break;
+  case LongVector::UnaryMathOpType_Exp2:
+    IntrinsicString = "exp2";
+    break;
+  case LongVector::UnaryMathOpType_Log:
+    IntrinsicString = "log";
+    break;
+  case LongVector::UnaryMathOpType_Log2:
+    IntrinsicString = "log2";
+    break;
+  case LongVector::UnaryMathOpType_Log10:
+    IntrinsicString = "log10";
+    break;
+  case LongVector::UnaryMathOpType_Rcp:
+    IntrinsicString = "rcp";
+    break;
+  default:
+    VERIFY_FAIL("Invalid UnaryMathOpType");
+  }
+}
+
+template <typename DataTypeT>
+DataTypeT LongVector::TestConfigUnaryMath<DataTypeT>::computeExpectedValue(
+    const DataTypeT &A) const {
+
+  // A bunch of the std match functions here are  wrapped in () to avoid
+  // collisions with the macro defitions for various functions in windows.h
+  switch(OpType) {
+  case LongVector::UnaryMathOpType_Abs:
+    return std::abs(A);
+  case LongVector::UnaryMathOpType_Ceil:
+    return (std::ceil)(A);
+  case LongVector::UnaryMathOpType_Floor:
+    return (std::floor)(A);
+  case LongVector::UnaryMathOpType_Trunc:
+    return (std::trunc)(A);
+  case LongVector::UnaryMathOpType_Round:
+    return (std::round)(A);
+  case LongVector::UnaryMathOpType_Frac:
+    // std::frac is not a standard C++ function, but we can implement it as
+    // A - std::floor(A)
+    return A - DataTypeT((std::floor)(A));
+  case LongVector::UnaryMathOpType_Sqrt:
+    return (std::sqrt)(A);
+  case LongVector::UnaryMathOpType_Rsqrt:
+    // std::rsqrt is not a standard C++ function, but we can implement it
+    // as 1.0 / std::sqrt(A)
+    return DataTypeT(1.0) / DataTypeT((std::sqrt)(A));
+  case LongVector::UnaryMathOpType_Exp:
+    return (std::exp)(A);
+  case LongVector::UnaryMathOpType_Exp2:
+    return (std::exp2)(A);
+  case LongVector::UnaryMathOpType_Log:
+    return (std::log)(A);
+  case LongVector::UnaryMathOpType_Log2:
+    return (std::log2)(A);
+  case LongVector::UnaryMathOpType_Log10:
+    return (std::log10)(A);
+  case LongVector::UnaryMathOpType_Rcp:
+    // std::rcp is not a standard C++ function, but we can implement it
+    return DataTypeT(1.0) / A;
+  default:
+    LOG_ERROR_FMT_THROW(
+        L"computeExpectedValue(const DataTypeT &A)"
+        L"called on an unrecognized unary math op: %ls",
+        OpTypeName.c_str());
+    return DataTypeT();
+  }
+
+}
+
+template <typename DataTypeT>
+void LongVector::TestConfigUnaryMath<DataTypeT>::computeExpectedValues(
+    const std::vector<DataTypeT> &InputVector1) {
+
+  if (OpType == LongVector::UnaryMathOpType_Sign) {
+    fillExpectedVector<int32_t>(
+        ExpectedVector, InputVector1.size(),
+        [&](size_t Index) { return sign(InputVector1[Index]); });
+    return;
+  }
+
+  fillExpectedVector<DataTypeT>(
+      ExpectedVector, InputVector1.size(),
+      [&](size_t Index) { return computeExpectedValue(InputVector1[Index]); });
 }
