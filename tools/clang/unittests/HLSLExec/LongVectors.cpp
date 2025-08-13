@@ -691,44 +691,34 @@ template <typename DataTypeT>
 std::string TestConfig<DataTypeT>::getCompilerOptionsString() const {
 
   std::stringstream CompilerOptions("");
-  std::string HLSLInputType = getHLSLInputTypeString();
 
-  CompilerOptions << "-DTYPE=";
-  CompilerOptions << HLSLInputType;
-  CompilerOptions << " -DNUM=";
-  CompilerOptions << LengthToTest;
-  const bool Is16BitType =
-      (HLSLInputType == "int16_t" || HLSLInputType == "uint16_t" ||
-       HLSLInputType == "half");
-  CompilerOptions << (Is16BitType ? " -enable-16bit-types" : "");
+  if (is16BitType<DataTypeT>())
+    CompilerOptions << " -enable-16bit-types";
+
+  CompilerOptions << " -DTYPE=" << getHLSLInputTypeString();
+  CompilerOptions << " -DNUM=" << LengthToTest;
+
   CompilerOptions << " -DOPERATOR=";
-  CompilerOptions << (Operator ? *Operator : " ");
+  if (Operator)
+    CompilerOptions << *Operator;
 
+  CompilerOptions << " -DFUNC=";
+  if (Intrinsic)
+    CompilerOptions << *Intrinsic;
+
+  const bool IsScalarOp = isScalarOp();
+  CompilerOptions << " -DOPERAND2=";
   if (isBinaryOp()) {
-    CompilerOptions << " -DOPERAND2=";
-    CompilerOptions << (isScalarOp() ? "InputScalar" : "InputVector2");
-
-    if (isScalarOp())
-      CompilerOptions << " -DIS_SCALAR_OP=1";
-    else
-      CompilerOptions << " -DIS_BINARY_VECTOR_OP=1";
-
-    CompilerOptions << " -DFUNC=";
-    CompilerOptions << (Intrinsic ? *Intrinsic : " ");
-  } else { // Unary Op
-    CompilerOptions << " -DFUNC=";
-    CompilerOptions << (Intrinsic ? *Intrinsic : " ");
-    // Not used for unary ops, but needs to be a " " for compilation of the
-    // shader after macro expansion.
-    CompilerOptions << " -DOPERAND2= ";
+    CompilerOptions << (IsScalarOp ? "InputScalar" : "InputVector2");
+    CompilerOptions << (IsScalarOp ? " -DIS_SCALAR_OP=1"
+                                   : " -DIS_BINARY_VECTOR_OP=1");
   }
 
-  // For most of the ops this string is empty.
-  CompilerOptions << (SpecialDefines ? *SpecialDefines : " ");
+  // For most of the ops this string is std::nullopt.
+  if (SpecialDefines)
+    CompilerOptions << " " << *SpecialDefines;
 
-  std::string HLSLOutputType = getHLSLOutputTypeString();
-  CompilerOptions << " -DOUT_TYPE=";
-  CompilerOptions << HLSLOutputType;
+  CompilerOptions << " -DOUT_TYPE=" << getHLSLOutputTypeString();
 
   return CompilerOptions.str();
 }

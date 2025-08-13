@@ -73,6 +73,12 @@ template <typename DataTypeT> constexpr bool isFloatingPointType() {
          std::is_same_v<DataTypeT, HLSLHalf_t>;
 }
 
+template <typename DataTypeT> constexpr bool is16BitType() {
+  return std::is_same_v<DataTypeT, int16_t> ||
+         std::is_same_v<DataTypeT, uint16_t> ||
+         std::is_same_v<DataTypeT, HLSLHalf_t>;
+}
+
 template <typename DataTypeT> std::string getHLSLTypeString();
 
 // Helpful metadata struct so we can define some common properties for a test in
