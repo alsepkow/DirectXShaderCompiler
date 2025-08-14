@@ -118,8 +118,9 @@ enum ValidationType {
 };
 
 enum BasicOpType {
-  BasicOpType_Binary,
   BasicOpType_Unary,
+  BasicOpType_Binary,
+  BasicOpType_Ternary,
   BasicOpType_ScalarBinary,
   BasicOpType_EnumValueCount
 };
@@ -319,6 +320,32 @@ getBinaryMathOpType(const std::wstring &OpTypeString) {
                                      OpTypeString);
 }
 
+enum TernaryMathOpType {
+  TernaryMathOpType_Fma,
+  TernaryMathOpType_Mad,
+  TernaryMathOpType_SmoothStep,
+  TernaryMathOpType_EnumValueCount
+};
+
+static const OpTypeMetaData<TernaryMathOpType>
+    ternaryMathOpTypeStringToOpMetaData[] = {
+        {L"TernaryMathOpType_Fma", TernaryMathOpType_Fma, "fma"},
+        {L"TernaryMathOpType_Mad", TernaryMathOpType_Mad, "mad"},
+        {L"TernaryMathOpType_SmoothStep", TernaryMathOpType_SmoothStep,
+         "smoothstep"},
+};
+
+static_assert(_countof(ternaryMathOpTypeStringToOpMetaData) ==
+                  TernaryMathOpType_EnumValueCount,
+              "ternaryMathOpTypeStringToOpMetaData size mismatch. Did you "
+              "add a new enum value?");
+
+const OpTypeMetaData<TernaryMathOpType> &
+getTernaryMathOpType(const std::wstring &OpTypeString) {
+  return getOpType<TernaryMathOpType>(ternaryMathOpTypeStringToOpMetaData,
+                                      OpTypeString);
+}
+
 template <typename DataTypeT>
 std::vector<DataTypeT> getInputValueSetByKey(const std::wstring &Key,
                                              bool LogKey = true) {
@@ -337,9 +364,19 @@ public:
 
   TEST_CLASS_SETUP(classSetup);
 
+  BEGIN_TEST_METHOD(unaryMathOpTest)
+  TEST_METHOD_PROPERTY(L"DataSource",
+                       L"Table:LongVectorOpTable.xml#UnaryMathOpTable")
+  END_TEST_METHOD()
+
   BEGIN_TEST_METHOD(binaryMathOpTest)
   TEST_METHOD_PROPERTY(L"DataSource",
                        L"Table:LongVectorOpTable.xml#BinaryMathOpTable")
+  END_TEST_METHOD()
+
+  BEGIN_TEST_METHOD(ternaryMathOpTest)
+  TEST_METHOD_PROPERTY(L"DataSource",
+                       L"Table:LongVectorOpTable.xml#TernaryMathOpTable")
   END_TEST_METHOD()
 
   BEGIN_TEST_METHOD(trigonometricOpTest)
@@ -357,10 +394,6 @@ public:
                        L"Table:LongVectorOpTable.xml#AsTypeOpTable")
   END_TEST_METHOD()
 
-  BEGIN_TEST_METHOD(unaryMathOpTest)
-  TEST_METHOD_PROPERTY(L"DataSource",
-                       L"Table:LongVectorOpTable.xml#UnaryMathOpTable")
-  END_TEST_METHOD()
 
   template <typename OpTypeT>
   void dispatchTestByDataType(const OpTypeMetaData<OpTypeT> &OpTypeMD,
@@ -741,6 +774,44 @@ private:
 };
 
 template <typename DataTypeT>
+class TestConfigTernaryMath : public TestConfig<DataTypeT> {
+public:
+  TestConfigTernaryMath(const OpTypeMetaData<TernaryMathOpType> &OpTypeMd);
+  //DataTypeT computeExpectedValue(const DataTypeT &A, const DataTypeT &B,
+  //                               const DataTypeT &C) const override;
+private:
+  TernaryMathOpType OpType = TernaryMathOpType_EnumValueCount;
+
+  // fma only supports doubles.
+  double fma(const double &A, const double &B,
+                const double &C) const {
+    return A * B + C;
+  }
+
+  // TODO: should take numeric only?
+  DataTypeT mad(const DataTypeT &A, const DataTypeT &B,
+                const DataTypeT &C) const {
+    return A * B + C;
+  }
+
+  // TODO: should take floats only?
+  DataTypeT smoothStep(const DataTypeT &Min, const DataTypeT &Max, const DataTypeT &X) const {
+    // smoothstep returns a smooth Hermite interpolation between 0 and 1,
+    // if X is in the range [Min, Max].
+    //
+    // 1. Normalize X to [0, 1] between Min and Max.
+    DataTypeT NormalizedX = (X - Min) / (Max - Min);
+    // 2. Clamp the result to [0, 1]. Ensures that we aren't out of bounds
+    //    for the Hermite cubic interpolation. This can happen in step 1 due to
+    //    floating-point imprecision issues (we could be slightly out of range).
+    NormalizedX = std::clamp(NormalizedX, DataTypeT(0), DataTypeT(1));
+    // 3. Apply Hermite cubic interpolation: NormalizedX^2 * (3 - 2 * NormalizedX)
+    return NormalizedX * NormalizedX * (DataTypeT(3) - DataTypeT(2) * NormalizedX);
+  }
+
+};
+
+template <typename DataTypeT>
 std::unique_ptr<TestConfig<DataTypeT>>
 makeTestConfig(const OpTypeMetaData<UnaryOpType> &OpTypeMetaData) {
   return std::make_unique<TestConfigUnary<DataTypeT>>(OpTypeMetaData);
@@ -768,6 +839,12 @@ template <typename DataTypeT>
 std::unique_ptr<TestConfig<DataTypeT>>
 makeTestConfig(const OpTypeMetaData<BinaryMathOpType> &OpTypeMetaData) {
   return std::make_unique<TestConfigBinaryMath<DataTypeT>>(OpTypeMetaData);
+}
+
+template <typename DataTypeT>
+std::unique_ptr<TestConfig<DataTypeT>>
+makeTestConfig(const OpTypeMetaData<TernaryMathOpType> &OpTypeMetaData) {
+  return std::make_unique<TestConfigTernaryMath<DataTypeT>>(OpTypeMetaData);
 }
 
 }; // namespace LongVector

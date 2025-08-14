@@ -223,6 +223,12 @@ template <typename DataTypeT> std::string getHLSLTypeString() {
 
 // These are helper arrays to be used with the TableParameterHandler that parses
 // the LongVectorOpTable.xml file for us.
+static TableParameter UnaryOpParameters[] = {
+    {L"DataType", TableParameter::STRING, true},
+    {L"OpTypeEnum", TableParameter::STRING, true},
+    {L"InputValueSetName1", TableParameter::STRING, false},
+};
+
 static TableParameter BinaryOpParameters[] = {
     {L"DataType", TableParameter::STRING, true},
     {L"OpTypeEnum", TableParameter::STRING, true},
@@ -230,10 +236,15 @@ static TableParameter BinaryOpParameters[] = {
     {L"InputValueSetName2", TableParameter::STRING, false},
 };
 
-static TableParameter UnaryOpParameters[] = {
+static TableParameter ternaryOpParameters[] = {
     {L"DataType", TableParameter::STRING, true},
     {L"OpTypeEnum", TableParameter::STRING, true},
     {L"InputValueSetName1", TableParameter::STRING, false},
+    {L"InputValueSetName2", TableParameter::STRING, false},
+    {L"InputValueSetName3", TableParameter::STRING, false},
+    {L"Input1IsScalar", TableParameter::BOOL, true},
+    {L"Input2IsScalar", TableParameter::BOOL, true},
+    {L"Input3IsScalar", TableParameter::BOOL, true},
 };
 
 static TableParameter AsTypeOpParameters[] = {
@@ -357,6 +368,23 @@ TEST_F(OpTest, binaryMathOpTest) {
   std::wstring OpTypeString(Handler.GetTableParamByName(L"OpTypeEnum")->m_str);
 
   auto OpTypeMD = getBinaryMathOpType(OpTypeString);
+  dispatchTestByDataType(OpTypeMD, DataType, Handler);
+}
+
+TEST_F(OpTest, ternaryMathOpTest) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+      WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+
+  using namespace WEX::Common;
+
+  const size_t TableSize = sizeof(ternaryOpParameters) / sizeof(TableParameter);
+  TableParameterHandler Handler(ternaryOpParameters, TableSize);
+
+  // TODO: Need more?
+  std::wstring DataType(Handler.GetTableParamByName(L"DataType")->m_str);
+  std::wstring OpTypeString(Handler.GetTableParamByName(L"OpTypeEnum")->m_str);
+
+  auto OpTypeMD = getTernaryMathOpType(OpTypeString);
   dispatchTestByDataType(OpTypeMD, DataType, Handler);
 }
 
@@ -547,6 +575,7 @@ void OpTest::testBaseMethod(
   const bool IsVectorBinaryOp =
       TestConfig->isBinaryOp() && !TestConfig->isScalarOp();
 
+  // TODO: Need to update all logic for ternary ops. Guh.
   std::vector<DataTypeT> InputVector1ValueSet = TestConfig->getInputValueSet1();
   std::vector<DataTypeT> InputVector2ValueSet =
       TestConfig->isBinaryOp() ? TestConfig->getInputValueSet2()
@@ -1181,6 +1210,28 @@ DataTypeT TestConfigBinaryMath<DataTypeT>::computeExpectedValue(
   default:
     LOG_ERROR_FMT_THROW(L"Unknown BinaryMathOpType: %ls", OpTypeName.c_str());
     return DataTypeT();
+  }
+}
+
+template <typename DataTypeT>
+TestConfigTernaryMath<DataTypeT>::TestConfigTernaryMath(
+    const OpTypeMetaData<TernaryMathOpType> &OpTypeMd)
+    : TestConfig<DataTypeT>(OpTypeMd), OpType(OpTypeMd.OpType) {
+
+  if (isFloatingPointType<DataTypeT>()) {
+    Tolerance = 1;
+    ValidationType = ValidationType_Ulp;
+  }
+
+  BasicOpType = BasicOpType_Ternary;
+
+  switch (OpType) {
+  case TernaryMathOpType_Fma:
+  case TernaryMathOpType_Mad:
+  case TernaryMathOpType_SmoothStep:
+    break;
+  default:
+    LOG_ERROR_FMT_THROW(L"Invalid TernaryMathOpType: %ls", OpTypeName.c_str());
   }
 }
 
