@@ -571,6 +571,8 @@ void OpTest::testBaseMethod(
   InputVector1.reserve(VectorLengthToTest);
   std::vector<DataTypeT> InputVector2; // May be unused, but must be defined.
   InputVector2.reserve(VectorLengthToTest);
+  std::vector<DataTypeT> InputVector3; // May be unused, but must be defined.
+  InputVector3.reserve(VectorLengthToTest);
   std::vector<DataTypeT> ScalarInput; // May be unused, but must be defined.
   const bool IsVectorBinaryOp =
       TestConfig->isBinaryOp() && !TestConfig->isScalarOp();
@@ -581,6 +583,8 @@ void OpTest::testBaseMethod(
       TestConfig->isBinaryOp() ? TestConfig->getInputValueSet2()
                                : std::vector<DataTypeT>();
 
+  // TODO: do we care how many scalar ops? Could just always populate it with
+  // two. Its easier.
   if (TestConfig->isScalarOp())
     // Scalar ops are always binary ops. So InputVector2ValueSet is initialized
     // with values above.
@@ -592,9 +596,12 @@ void OpTest::testBaseMethod(
     InputVector1.push_back(
         InputVector1ValueSet[Index % InputVector1ValueSet.size()]);
 
+    // TODO: 'HasInputVector2'. If true fill er up.
     if (IsVectorBinaryOp)
       InputVector2.push_back(
           InputVector2ValueSet[Index % InputVector2ValueSet.size()]);
+
+    // TODO: 'HasInputVector3'. If true fill er up.
   }
 
   if (IsVectorBinaryOp)
@@ -605,6 +612,7 @@ void OpTest::testBaseMethod(
     TestConfig->computeExpectedValues(InputVector1);
 
   if (LogInputs) {
+    // TODO: Need to update for ternary
     logLongVector(InputVector1, L"InputVector1");
 
     if (IsVectorBinaryOp)
@@ -650,6 +658,8 @@ void OpTest::testBaseMethod(
         }
 
         // Process the callback for the InputFuncArgs resource.
+        // TODO: update the comments here. This can be used for args, but also
+        // for scalar inputs. Which are.....args.
         if (0 == _stricmp(Name, "InputFuncArgs")) {
           if (TestConfig->isScalarOp())
             fillShaderBufferFromLongVectorData(ShaderData, ScalarInput);
@@ -664,8 +674,15 @@ void OpTest::testBaseMethod(
 
         // Process the callback for the InputVector2 resource.
         if (0 == _stricmp(Name, "InputVector2")) {
-          if (IsVectorBinaryOp)
+          if (InputVector2.size())
             fillShaderBufferFromLongVectorData(ShaderData, InputVector2);
+          return;
+        }
+
+        // Process the callback for the InputVector3 resource.
+        if (0 == _stricmp(Name, "InputVector3")) {
+          if (InputVector3.size())
+            fillShaderBufferFromLongVectorData(ShaderData, InputVector3);
           return;
         }
 
@@ -735,19 +752,35 @@ std::string TestConfig<DataTypeT>::getCompilerOptionsString() const {
   if (Intrinsic)
     CompilerOptions << *Intrinsic;
 
-  const bool IsScalarOp = isScalarOp();
-  CompilerOptions << " -DOPERAND2=";
-  if (isBinaryOp()) {
-    CompilerOptions << (IsScalarOp ? "InputScalar" : "InputVector2");
-    CompilerOptions << (IsScalarOp ? " -DIS_SCALAR_OP=1"
-                                   : " -DIS_BINARY_VECTOR_OP=1");
-  }
-
   // For most of the ops this string is std::nullopt.
   if (SpecialDefines)
     CompilerOptions << " " << *SpecialDefines;
 
   CompilerOptions << " -DOUT_TYPE=" << getHLSLOutputTypeString();
+
+  // TODO: WIP for updated ternary logic.
+  // NEED to add a getter for the scalar bit field. Being lazy for now to test
+  // the defines.
+  CompilerOptions << " -DBASIC_OP_TYPE=";
+  if( BasicOpType == BasicOpType_Unary ) {
+    CompilerOptions << "0x1";
+    CompilerOptions << " -DOPERAND_IS_SCALAR_BITFIELD=0x0";
+  }
+  else if (BasicOpType == BasicOpType_Binary) {
+    CompilerOptions << "0x2";
+    CompilerOptions << " -DOPERAND_IS_SCALAR_BITFIELD=0x0";
+  }
+  else if (BasicOpType == BasicOpType_ScalarBinary) {
+    CompilerOptions << "0x2";
+    CompilerOptions << " -DOPERAND_IS_SCALAR_BITFIELD=0x2";
+  }
+  else if (BasicOpType == BasicOpType_Ternary) {
+    CompilerOptions << "0x3";
+    CompilerOptions << " -DOPERAND_IS_SCALAR_BITFIELD=0x0";
+  }
+  else {
+    LOG_ERROR_FMT_THROW(L"Invalid BasicOpType: %d", static_cast<int>(BasicOpType));
+  }
 
   return CompilerOptions.str();
 }
