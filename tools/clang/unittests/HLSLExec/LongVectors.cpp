@@ -851,32 +851,38 @@ template <typename DataTypeT>
 void TestConfig<DataTypeT>::computeExpectedValues(const TestInputs<DataTypeT> &Inputs) {
 
   switch (BasicOpType) {
-  case BasicOpType_Unary:
-    computeExpectedValues(Inputs.InputVector1);
-    return;
   case BasicOpType_Binary:
-    if (OpInputFlags & OP_INPUT_2_IS_SCALAR)
-      computeExpectedValues(Inputs.InputVector1, Inputs.ScalarInput.value());
-    else
+    if (Inputs.ScalarInput.has_value())
+      computeExpectedValues(Inputs.InputVector1, Inputs.ScalarInput.value()[0]);
+    else 
       computeExpectedValues(Inputs.InputVector1, Inputs.InputVector2.value());
     return;
   case BasicOpType_Ternary: {
-    //if (OpInputFlags & OP_INPUT_3_IS_SCALAR)
-    //  computeExpectedValues(Inputs.InputVector1, Inputs.InputVector2.value(), Inputs.ScalarInput.value());
-    //else
-    //  computeExpectedValues(Inputs.InputVector1, Inputs.InputVector2.value(), Inputs.InputVector3.value());
-    //return;
-  }}
-}
+   // // ScalarInput is optional, but if they are present, they are stored in
+   // // the order that they will be used as operands.
+   // if (Inputs.ScalarInput().has_value()) {
+   //   auto &ScalarInput = Inputs.ScalarInput.value();
+   //   if(ScalarInput.size() == 1) {
+   //     computeExpectedValues(Inputs.InputVector1, ScalarInput[0],
+   //                           Inputs.InputVector3.value());
+   //     return;
+   //   } else if (ScalarInput.size() == 2) {
+   //     computeExpectedValues(Inputs.InputVector1, ScalarInput[0],
+   //                           ScalarInput[1]);
+   //     return;
+   //   } else {
+   //     LOG_ERROR_FMT_THROW(L"Invalid ScalarInput size: %zu. Expected 1 or 2.",
+   //                         ScalarInput.size());
+   //   }
+   // }
 
-// Generic computeExpectedValues for Unary ops. Derived classes override
-// computeExpectedValue.
-template <typename DataTypeT>
-void TestConfig<DataTypeT>::computeExpectedValues(
-    const std::vector<DataTypeT> &InputVector1) {
-  fillExpectedVector<DataTypeT>(
-      ExpectedVector, InputVector1.size(),
-      [&](size_t Index) { return computeExpectedValue(InputVector1[Index]); });
+   // computeExpectedValues(Inputs.InputVector1, Inputs.InputVector2.value(),
+   //                           Inputs.InputVector3.value());
+    return;
+  }
+  default:
+    LOG_ERROR_FMT_THROW(L"Invalid BasicOpType: %d", static_cast<int>(BasicOpType));
+  }
 }
 
 // Generic computeExpectedValues for Binary ops. Derived classes override
@@ -885,6 +891,10 @@ template <typename DataTypeT>
 void TestConfig<DataTypeT>::computeExpectedValues(
     const std::vector<DataTypeT> &InputVector1,
     const std::vector<DataTypeT> &InputVector2) {
+
+  DXASSERT_NOMSG(BasicOpType == BasicOpType_Binary);
+  DXASSERT_NOMSG(!(OpInputFlags & OP_INPUT_2_IS_SCALAR));
+
   fillExpectedVector<DataTypeT>(
       ExpectedVector, InputVector1.size(), [&](size_t Index) {
         return computeExpectedValue(InputVector1[Index], InputVector2[Index]);
@@ -896,6 +906,10 @@ void TestConfig<DataTypeT>::computeExpectedValues(
 template <typename DataTypeT>
 void TestConfig<DataTypeT>::computeExpectedValues(
     const std::vector<DataTypeT> &InputVector1, const DataTypeT &ScalarInput) {
+
+  DXASSERT_NOMSG(BasicOpType == BasicOpType_Binary);
+  DXASSERT_NOMSG(OpInputFlags & OP_INPUT_2_IS_SCALAR);
+
   fillExpectedVector<DataTypeT>(
       ExpectedVector, InputVector1.size(), [&](size_t Index) {
         return computeExpectedValue(InputVector1[Index], ScalarInput);
@@ -948,6 +962,7 @@ void TestConfig<DataTypeT>::fillInputs(TestInputs<DataTypeT> &Inputs) const {
     else
       fillOptionalVecFromValueSet(Inputs.InputVector3, 3, LengthToTest);
 }
+
 
 template <typename DataTypeT>
 TestConfigAsType<DataTypeT>::TestConfigAsType(
@@ -1222,9 +1237,7 @@ void TestConfigUnaryMath<DataTypeT>::computeExpectedValues(
     return;
   }
 
-  fillExpectedVector<DataTypeT>(
-      ExpectedVector, InputVector1.size(),
-      [&](size_t Index) { return computeExpectedValue(InputVector1[Index]); });
+  TestConfigBasicUnary<DataTypeT>::computeExpectedValues(InputVector1, ExpectedVector);
 }
 
 template <typename DataTypeT>
