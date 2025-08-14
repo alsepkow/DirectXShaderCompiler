@@ -234,6 +234,8 @@ static TableParameter BinaryOpParameters[] = {
     {L"OpTypeEnum", TableParameter::STRING, true},
     {L"InputValueSetName1", TableParameter::STRING, false},
     {L"InputValueSetName2", TableParameter::STRING, false},
+    // Input2IsScalar is optional, defaults logically to false.
+    {L"Input2IsScalar", TableParameter::BOOL, false},
 };
 
 static TableParameter ternaryOpParameters[] = {
@@ -242,9 +244,9 @@ static TableParameter ternaryOpParameters[] = {
     {L"InputValueSetName1", TableParameter::STRING, false},
     {L"InputValueSetName2", TableParameter::STRING, false},
     {L"InputValueSetName3", TableParameter::STRING, false},
-    {L"Input1IsScalar", TableParameter::BOOL, true},
-    {L"Input2IsScalar", TableParameter::BOOL, true},
-    {L"Input3IsScalar", TableParameter::BOOL, true},
+    // InputXIsScalar are optional, defaults logically to false.
+    {L"Input2IsScalar", TableParameter::BOOL, false},
+    {L"Input3IsScalar", TableParameter::BOOL, false},
 };
 
 static TableParameter AsTypeOpParameters[] = {
@@ -366,8 +368,12 @@ TEST_F(OpTest, binaryMathOpTest) {
 
   std::wstring DataType(Handler.GetTableParamByName(L"DataType")->m_str);
   std::wstring OpTypeString(Handler.GetTableParamByName(L"OpTypeEnum")->m_str);
+  const bool Input2IsScalar =
+      Handler.GetTableParamByName(L"Input2IsScalar")->m_bool;
 
   auto OpTypeMD = getBinaryMathOpType(OpTypeString);
+  if (Input2IsScalar)
+    OpTypeMD.OpInputFlags |= OP_INPUT_2_IS_SCALAR;
   dispatchTestByDataType(OpTypeMD, DataType, Handler);
 }
 
@@ -383,8 +389,17 @@ TEST_F(OpTest, ternaryMathOpTest) {
   // TODO: Need more?
   std::wstring DataType(Handler.GetTableParamByName(L"DataType")->m_str);
   std::wstring OpTypeString(Handler.GetTableParamByName(L"OpTypeEnum")->m_str);
+  const bool Input2IsScalar =
+      Handler.GetTableParamByName(L"Input2IsScalar")->m_bool;
+  const bool Input3IsScalar =
+      Handler.GetTableParamByName(L"Input3IsScalar")->m_bool;
 
   auto OpTypeMD = getTernaryMathOpType(OpTypeString);
+  if (Input2IsScalar)
+    OpTypeMD.OpInputFlags |= OP_INPUT_2_IS_SCALAR;
+  if (Input3IsScalar)
+    OpTypeMD.OpInputFlags |= OP_INPUT_3_IS_SCALAR;
+
   dispatchTestByDataType(OpTypeMD, DataType, Handler);
 }
 
@@ -546,7 +561,6 @@ void OpTest::testBaseMethod(
       WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
 
   const size_t VectorLengthToTest = TestConfig->getLengthToTest();
-
   hlsl_test::LogCommentFmt(L"Running LongVectorOpTestBase<%S, %zu>",
                            typeid(DataTypeT).name(), VectorLengthToTest);
 
@@ -567,58 +581,27 @@ void OpTest::testBaseMethod(
 #endif
   }
 
-  std::vector<DataTypeT> InputVector1;
-  InputVector1.reserve(VectorLengthToTest);
-  std::vector<DataTypeT> InputVector2; // May be unused, but must be defined.
-  InputVector2.reserve(VectorLengthToTest);
-  std::vector<DataTypeT> InputVector3; // May be unused, but must be defined.
-  InputVector3.reserve(VectorLengthToTest);
-  std::vector<DataTypeT> ScalarInput; // May be unused, but must be defined.
-  const bool IsVectorBinaryOp =
-      TestConfig->isBinaryOp() && !TestConfig->isScalarOp();
+  TestInputs<DataTypeT> Inputs = TestInputs<DataTypeT>();
+  TestConfig->fillInputs(Inputs);
 
-  // TODO: Need to update all logic for ternary ops. Guh.
-  std::vector<DataTypeT> InputVector1ValueSet = TestConfig->getInputValueSet1();
-  std::vector<DataTypeT> InputVector2ValueSet =
-      TestConfig->isBinaryOp() ? TestConfig->getInputValueSet2()
-                               : std::vector<DataTypeT>();
-
-  // TODO: do we care how many scalar ops? Could just always populate it with
-  // two. Its easier.
-  if (TestConfig->isScalarOp())
-    // Scalar ops are always binary ops. So InputVector2ValueSet is initialized
-    // with values above.
-    ScalarInput.push_back(InputVector2ValueSet[0]);
-
-  // Fill the input vectors with values from the value set. Repeat the values
-  // when we reach the end of the value set.
-  for (size_t Index = 0; Index < VectorLengthToTest; Index++) {
-    InputVector1.push_back(
-        InputVector1ValueSet[Index % InputVector1ValueSet.size()]);
-
-    // TODO: 'HasInputVector2'. If true fill er up.
-    if (IsVectorBinaryOp)
-      InputVector2.push_back(
-          InputVector2ValueSet[Index % InputVector2ValueSet.size()]);
-
-    // TODO: 'HasInputVector3'. If true fill er up.
-  }
-
-  if (IsVectorBinaryOp)
-    TestConfig->computeExpectedValues(InputVector1, InputVector2);
-  else if (TestConfig->isScalarOp())
-    TestConfig->computeExpectedValues(InputVector1, ScalarInput[0]);
-  else // Must be a unary op
-    TestConfig->computeExpectedValues(InputVector1);
+  TestConfig->computeExpectedValues(Inputs);
+  // TODO: I think we should just pass all of the input vectors to a
+  // 'computeExpectedValues' And the configs can override appropriately.
+  //if (IsVectorBinaryOp)
+  //  TestConfig->computeExpectedValues(InputVector1, InputVector2);
+  //else if (TestConfig->isScalarOp())
+  //  TestConfig->computeExpectedValues(InputVector1, ScalarInput[0]);
+  //else // Must be a unary op
+  //  TestConfig->computeExpectedValues(InputVector1);
 
   if (LogInputs) {
-    // TODO: Need to update for ternary
-    logLongVector(InputVector1, L"InputVector1");
-
-    if (IsVectorBinaryOp)
-      logLongVector(InputVector2, L"InputVector2");
-    else if (TestConfig->isScalarOp())
-      logLongVector(ScalarInput, L"ScalarInput");
+    logLongVector(Inputs.InputVector1, L"InputVector1");
+    if (Inputs.InputVector2.has_value())
+      logLongVector(Inputs.InputVector2.value(), L"InputVector2");
+    if (Inputs.InputVector3.has_value())
+      logLongVector(Inputs.InputVector3.value(), L"InputVector3");
+    if (Inputs.ScalarInput.has_value())
+      logLongVector(Inputs.ScalarInput.value(), L"ScalarInput");
   }
 
   // We have to construct the string outside of the lambda. Otherwise it's
@@ -660,29 +643,28 @@ void OpTest::testBaseMethod(
         // Process the callback for the InputFuncArgs resource.
         // TODO: update the comments here. This can be used for args, but also
         // for scalar inputs. Which are.....args.
-        if (0 == _stricmp(Name, "InputFuncArgs")) {
-          if (TestConfig->isScalarOp())
-            fillShaderBufferFromLongVectorData(ShaderData, ScalarInput);
+        if (0 == _stricmp(Name, "InputFuncArgs") && Inputs.ScalarInput.has_value()) {
+          fillShaderBufferFromLongVectorData(ShaderData, Inputs.ScalarInput.value());
           return;
         }
 
         // Process the callback for the InputVector1 resource.
         if (0 == _stricmp(Name, "InputVector1")) {
-          fillShaderBufferFromLongVectorData(ShaderData, InputVector1);
+          fillShaderBufferFromLongVectorData(ShaderData, Inputs.InputVector1.value());
           return;
         }
 
         // Process the callback for the InputVector2 resource.
-        if (0 == _stricmp(Name, "InputVector2")) {
-          if (InputVector2.size())
-            fillShaderBufferFromLongVectorData(ShaderData, InputVector2);
+        if (0 == _stricmp(Name, "InputVector2") 
+            && Inputs.InputVector2.has_value()) {
+          fillShaderBufferFromLongVectorData(ShaderData, Inputs.InputVector2.value());
           return;
         }
 
         // Process the callback for the InputVector3 resource.
-        if (0 == _stricmp(Name, "InputVector3")) {
-          if (InputVector3.size())
-            fillShaderBufferFromLongVectorData(ShaderData, InputVector3);
+        if (0 == _stricmp(Name, "InputVector3") 
+            && Inputs.InputVector3.has_value()) {
+          fillShaderBufferFromLongVectorData(ShaderData, Inputs.InputVector3.value());
           return;
         }
 
@@ -761,6 +743,9 @@ std::string TestConfig<DataTypeT>::getCompilerOptionsString() const {
   // TODO: WIP for updated ternary logic.
   // NEED to add a getter for the scalar bit field. Being lazy for now to test
   // the defines.
+  // TODO: Do the right thing for scalar bit field based of of Input whatever ..
+  // flags. And probably come up with a better name for
+  // -DOPERAND_IS_SCALAR_BITFIELD
   CompilerOptions << " -DBASIC_OP_TYPE=";
   if( BasicOpType == BasicOpType_Unary ) {
     CompilerOptions << "0x1";
@@ -893,6 +878,50 @@ void TestConfig<DataTypeT>::computeExpectedValues(
         return computeExpectedValue(InputVector1[Index], ScalarInput);
       });
 }
+
+// Generic fillInputVectors. If the op doesn't use a given input then it simply
+// this function just doesn't fill it.
+template <typename DataTypeT>
+void TestConfig<DataTypeT>::fillInputs(TestInputs<DataTypeT> &Inputs) const {
+
+    auto fillVecFromValueSet = [](std::optional<std::vector<DataTypeT>> &Vec,
+                              size_t ValueSetIndex,
+                              size_t Count) {
+      if(!Vec.has_value())
+        Vec = std::vector<DataTypeT>();
+
+      std::vector<DataTypeT> ValueSet = getInputValueSet(ValueSetIndex);
+      for (size_t Index = 0; Index < Count; Index++) {
+        Vec->push_back(ValueSet[Index % ValueSet.size()]);
+      }
+    };
+
+    // All ops use InputVector1. And it's always a vector, not a scalar.
+    // So just fill it.
+    fillVecFromValueSet(Inputs.InputVector1, 1, LengthToTest);
+
+    if (BasicOpType == BasicOpType_Unary)
+      return;
+
+    DXASSERT_NOMSG(BasicOpType == BasicOpType_Binary ||
+                   BasicOpType == BasicOpType_Ternary);
+
+    if (OpInputFlags & OP_INPUT_2_IS_SCALAR)
+      fillVecFromValueSet(Inputs.ScalarInput, 2, 1);
+    else
+      fillVecFromValueSet(Inputs.InputVector2, 2, LengthToTest);
+
+    if (BasicOpType == BasicOpType_Binary)
+      return;
+
+    DXASSERT_NOMSG(BasicOpType == BasicOpType_Ternary);
+
+    if (OpInputFlags & OP_INPUT_3_IS_SCALAR)
+      fillVecFromValueSet(Inputs.ScalarInput, 3, 1);
+    else
+      fillVecFromValueSet(Inputs.InputVector3, 3, LengthToTest);
+}
+
 
 template <typename DataTypeT>
 TestConfigAsType<DataTypeT>::TestConfigAsType(

@@ -81,6 +81,13 @@ template <typename DataTypeT> constexpr bool is16BitType() {
 
 template <typename DataTypeT> std::string getHLSLTypeString();
 
+
+enum OP_INPUT_FLAGS {
+  OP_INPUT_1_IS_SCALAR = 0x1,
+  OP_INPUT_2_IS_SCALAR = 0x2,
+  OP_INPUT_3_IS_SCALAR = 0x4,
+};
+
 // Helpful metadata struct so we can define some common properties for a test in
 // a single place. Intrinsic and Operator are passed in with -D defines to
 // the compiler and expanded as macros in the HLSL code. For a better
@@ -106,6 +113,7 @@ template <typename OpTypeT> struct OpTypeMetaData {
   OpTypeT OpType;
   std::optional<std::string> Intrinsic = std::nullopt;
   std::optional<std::string> Operator = std::nullopt;
+  unsigned int OpInputFlags = 0x0;
 };
 
 template <typename T, size_t Length>
@@ -441,6 +449,14 @@ template <typename DataTypeT>
 void logLongVector(const std::vector<DataTypeT> &Values,
                    const std::wstring &Name);
 
+template <typename DataTypeT>
+struct TestInputs {
+  std::vector<DataTypeT> InputVector1;
+  std::optional<std::vector<DataTypeT>> InputVector2 = std::nullopt;
+  std::optional<std::vector<DataTypeT>> InputVector3 = std::nullopt;
+  std::optional<std::vector<DataTypeT>> ScalarInput = std::nullopt;
+};
+
 // Helps handle the test configuration for LongVector operations.
 // It was particularly useful helping manage logic of computing expected values
 // and verifying the output. Especially helpful due to templating on the
@@ -451,14 +467,12 @@ template <typename DataTypeT> class TestConfig {
 public:
   virtual ~TestConfig() = default;
 
-  bool isBinaryOp() const {
-    return BasicOpType == BasicOpType_Binary ||
-           BasicOpType == BasicOpType_ScalarBinary;
-  }
-
+  // TODO: Can delete these?
+  bool isBinaryOp() const { return BasicOpType == BasicOpType_Binary; }
   bool isUnaryOp() const { return BasicOpType == BasicOpType_Unary; }
+  virtual bool isScalarOp() const { return OpInputFlags != 0; };
 
-  bool isScalarOp() const { return BasicOpType == BasicOpType_ScalarBinary; }
+  void fillInputs(TestInput& Inputs) const;
 
   // Helpers to get the hlsl type as a string for a given C++ type.
   std::string getHLSLInputTypeString() const {
@@ -474,10 +488,16 @@ public:
   void computeExpectedValues(const std::vector<DataTypeT> &InputVector1,
                              const DataTypeT &ScalarInput);
 
+  // TODO: All children override this and dispatch to appropriate private
+  // computeExpectedValues functions (like the ones defined above).
+  virtual void computeExpectedValues(TestInputs<DataTypeT> &Inputs);
+
+  // TODO: Deltee?
   void setInputValueSet1(const std::wstring &InputValueSetName) {
     InputValueSetName1 = InputValueSetName;
   }
 
+  /// TODO: :Delete me?
   void setInputValueSet2(const std::wstring &InputValueSetName) {
     InputValueSetName2 = InputValueSetName;
   }
@@ -526,7 +546,7 @@ protected:
   template <typename OpTypeT>
   TestConfig(const OpTypeMetaData<OpTypeT> &OpTypeMd)
       : OpTypeName(OpTypeMd.OpTypeString), Intrinsic(OpTypeMd.Intrinsic),
-        Operator(OpTypeMd.Operator) {}
+        Operator(OpTypeMd.Operator), OpInputFlags(OpTypeMd.OpInputFlags) {}
 
   // The appropriate computeExpectedValue should be implemented in derived
   // classes. Impelemented as virtual here to prevent requiring all derived
@@ -562,6 +582,8 @@ protected:
 
   // Just used for logging purposes.
   std::wstring OpTypeName = L"UnknownOpType";
+
+  const unsigned int OpInputFlags;
 }; // class TestConfig
 
 template <typename DataTypeT>
@@ -722,32 +744,6 @@ private:
 };
 
 template <typename DataTypeT>
-class TestConfigBinaryMath : public TestConfig<DataTypeT> {
-public:
-  TestConfigBinaryMath(const OpTypeMetaData<BinaryMathOpType> &OpTypeMd);
-  DataTypeT computeExpectedValue(const DataTypeT &A,
-                                 const DataTypeT &B) const override;
-
-private:
-  BinaryMathOpType OpType = BinaryMathOpType_EnumValueCount;
-
-  // Helpers so we do the right thing for float types. HLSLHalf_t is handled in
-  // an operator overload.
-  template <typename DataTypeT>
-  DataTypeT mod(const DataTypeT &A, const DataTypeT &B) const {
-    return A % B;
-  }
-
-  template <> float mod(const float &A, const float &B) const {
-    return std::fmod(A, B);
-  }
-
-  template <> double mod(const double &A, const double &B) const {
-    return std::fmod(A, B);
-  }
-};
-
-template <typename DataTypeT>
 class TestConfigUnaryMath : public TestConfig<DataTypeT> {
 public:
   TestConfigUnaryMath(const OpTypeMetaData<UnaryMathOpType> &OpTypeMd);
@@ -770,6 +766,32 @@ private:
       return DataTypeT(A);
     else
       return (std::abs)(A);
+  }
+};
+
+template <typename DataTypeT>
+class TestConfigBinaryMath : public TestConfig<DataTypeT> {
+public:
+  TestConfigBinaryMath(const OpTypeMetaData<BinaryMathOpType> &OpTypeMd);
+  DataTypeT computeExpectedValue(const DataTypeT &A,
+                                 const DataTypeT &B) const override;
+
+private:
+  BinaryMathOpType OpType = BinaryMathOpType_EnumValueCount;
+
+  // Helpers so we do the right thing for float types. HLSLHalf_t is handled in
+  // an operator overload.
+  template <typename DataTypeT>
+  DataTypeT mod(const DataTypeT &A, const DataTypeT &B) const {
+    return A % B;
+  }
+
+  template <> float mod(const float &A, const float &B) const {
+    return std::fmod(A, B);
+  }
+
+  template <> double mod(const double &A, const double &B) const {
+    return std::fmod(A, B);
   }
 };
 
