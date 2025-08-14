@@ -3752,7 +3752,7 @@ void MSMain(uint GID : SV_GroupIndex,
 
   <ShaderOp Name="LongVectorOp" CS="CS">
     <RootSignature>RootFlags(0), UAV(u0), UAV(u1), UAV(u2),
-    UAV(u3)</RootSignature>
+    UAV(u3), UAV(u4)</RootSignature>
     <!-- Width="16" BYTES to account for 2 of the largest scalar types (64 bits)-->
     <Resource Name="InputFuncArgs" Dimension="BUFFER" Width="24"
     Flags="ALLOW_UNORDERED_ACCESS" InitialResourceState="COPY_DEST"
@@ -3767,7 +3767,8 @@ void MSMain(uint GID : SV_GroupIndex,
       <RootValue Index="0" ResName="InputFuncArgs" />
       <RootValue Index="1" ResName="InputVector1" />
       <RootValue Index="2" ResName="InputVector2" />
-      <RootValue Index="3" ResName="OutputVector" />
+      <RootValue Index="3" ResName="InputVector3" />
+      <RootValue Index="4" ResName="OutputVector" />
     </RootValues>
     <!-- This shader has the following defines to be passed in as arguments:
      TYPE : The type of the input vector, e.g. float, double, int, uint.
@@ -3793,7 +3794,8 @@ void MSMain(uint GID : SV_GroupIndex,
         RWByteAddressBuffer g_InputFuncArgs : register(u0);
         RWByteAddressBuffer g_InputVector1 : register(u1);
         RWByteAddressBuffer g_InputVector2 : register(u2);
-        RWByteAddressBuffer g_OutputVector : register(u3);
+        RWByteAddressBuffer g_InputVector3 : register(u3);
+        RWByteAddressBuffer g_OutputVector : register(u4);
 
         // TODO: Should we do anything to make sure a valid value is passed in
         #define IS_UNARY_OP (BASIC_OP_TYPE == 0x1)
@@ -3836,9 +3838,13 @@ void MSMain(uint GID : SV_GroupIndex,
           vector<TYPE, NUM> Input1 = g_InputVector1.Load< vector<TYPE,
           NUM> >(0);
 
+          #if OPERAND_IS_SCALAR_BITFIELD != 0x0
+            uint ScalarLoadOffset = 0;
+          #endif
+
           #if (IS_BINARY_OP || IS_TERNARY_OP)
               #if SECOND_OPERAND_IS_SCALAR
-              TYPE Input2 = g_InputFuncArgs.Load<TYPE>(0);
+              TYPE Input2 = g_InputFuncArgs.Load<TYPE>(ScalarLoadOffset++);
               #else
               vector<TYPE, NUM> Input2 = g_InputVector2.Load< vector<TYPE,
               NUM> >(0);
@@ -3847,7 +3853,7 @@ void MSMain(uint GID : SV_GroupIndex,
 
           #if IS_TERNARY_OP
             #if THIRD_OPERAND_IS_SCALAR
-              TYPE Input3 = g_InputFuncArgs.Load<TYPE>(1);
+              TYPE Input3 = g_InputFuncArgs.Load<TYPE>(ScalarLoadOffset++);
               #else
               vector<TYPE, NUM> Input3 = g_InputVector2.Load< vector<TYPE,
               NUM> >(1);

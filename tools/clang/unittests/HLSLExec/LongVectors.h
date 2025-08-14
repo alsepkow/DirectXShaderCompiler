@@ -472,7 +472,7 @@ public:
   bool isUnaryOp() const { return BasicOpType == BasicOpType_Unary; }
   virtual bool isScalarOp() const { return OpInputFlags != 0; };
 
-  void fillInputs(TestInput& Inputs) const;
+  void fillInputs(TestInputs<DataTypeT> &Inputs) const;
 
   // Helpers to get the hlsl type as a string for a given C++ type.
   std::string getHLSLInputTypeString() const {
@@ -490,14 +490,15 @@ public:
 
   // TODO: All children override this and dispatch to appropriate private
   // computeExpectedValues functions (like the ones defined above).
-  virtual void computeExpectedValues(TestInputs<DataTypeT> &Inputs);
+  virtual void computeExpectedValues(const TestInputs<DataTypeT> &Inputs);
 
   // TODO: Deltee?
   void setInputValueSet1(const std::wstring &InputValueSetName) {
     InputValueSetName1 = InputValueSetName;
   }
 
-  /// TODO: :Delete me?
+  /// TODO: :Delete me? Probably just add a 'SetInputValueSet' that takes an
+  /// index instead. And store the strings in an array of size 3.
   void setInputValueSet2(const std::wstring &InputValueSetName) {
     InputValueSetName2 = InputValueSetName;
   }
@@ -506,16 +507,20 @@ public:
     this->LengthToTest = LengthToTest;
   }
 
+  // Can probably delete this.
   size_t getLengthToTest() const { return LengthToTest; }
 
+  // Can probable delete this.
   std::vector<DataTypeT> getInputValueSet1() const {
     return getInputValueSet(1);
   }
 
+  // Can probably delete this.
   std::vector<DataTypeT> getInputValueSet2() const {
     return getInputValueSet(2);
   }
 
+  // Can probably delete this.
   std::vector<DataTypeT> getInputArgsArray() const;
 
   float getTolerance() const { return Tolerance; }

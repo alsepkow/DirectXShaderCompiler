@@ -601,7 +601,7 @@ void OpTest::testBaseMethod(
     if (Inputs.InputVector3.has_value())
       logLongVector(Inputs.InputVector3.value(), L"InputVector3");
     if (Inputs.ScalarInput.has_value())
-      logLongVector(Inputs.ScalarInput.value(), L"ScalarInput");
+      logLongVector(Inputs.ScalarInput.value(), L"ScalarInputs");
   }
 
   // We have to construct the string outside of the lambda. Otherwise it's
@@ -643,28 +643,29 @@ void OpTest::testBaseMethod(
         // Process the callback for the InputFuncArgs resource.
         // TODO: update the comments here. This can be used for args, but also
         // for scalar inputs. Which are.....args.
-        if (0 == _stricmp(Name, "InputFuncArgs") && Inputs.ScalarInput.has_value()) {
-          fillShaderBufferFromLongVectorData(ShaderData, Inputs.ScalarInput.value());
+        if (0 == _stricmp(Name, "InputFuncArgs")) {
+          if (Inputs.ScalarInput.has_value())
+            fillShaderBufferFromLongVectorData(ShaderData, Inputs.ScalarInput.value());
           return;
         }
 
         // Process the callback for the InputVector1 resource.
         if (0 == _stricmp(Name, "InputVector1")) {
-          fillShaderBufferFromLongVectorData(ShaderData, Inputs.InputVector1.value());
+          fillShaderBufferFromLongVectorData(ShaderData, Inputs.InputVector1);
           return;
         }
 
         // Process the callback for the InputVector2 resource.
-        if (0 == _stricmp(Name, "InputVector2") 
-            && Inputs.InputVector2.has_value()) {
-          fillShaderBufferFromLongVectorData(ShaderData, Inputs.InputVector2.value());
+        if (0 == _stricmp(Name, "InputVector2")) {
+          if (Inputs.InputVector2.has_value())
+            fillShaderBufferFromLongVectorData(ShaderData, Inputs.InputVector2.value());
           return;
         }
 
         // Process the callback for the InputVector3 resource.
-        if (0 == _stricmp(Name, "InputVector3") 
-            && Inputs.InputVector3.has_value()) {
-          fillShaderBufferFromLongVectorData(ShaderData, Inputs.InputVector3.value());
+        if (0 == _stricmp(Name, "InputVector3") ) {
+          if (Inputs.InputVector3.has_value())
+            fillShaderBufferFromLongVectorData(ShaderData, Inputs.InputVector3.value());
           return;
         }
 
@@ -846,6 +847,28 @@ bool TestConfig<DataTypeT>::verifyOutput(
                         ValidationType);
 }
 
+template <typename DataTypeT>
+void TestConfig<DataTypeT>::computeExpectedValues(const TestInputs<DataTypeT> &Inputs) {
+
+  switch (BasicOpType) {
+  case BasicOpType_Unary:
+    computeExpectedValues(Inputs.InputVector1);
+    return;
+  case BasicOpType_Binary:
+    if (OpInputFlags & OP_INPUT_2_IS_SCALAR)
+      computeExpectedValues(Inputs.InputVector1, Inputs.ScalarInput.value());
+    else
+      computeExpectedValues(Inputs.InputVector1, Inputs.InputVector2.value());
+    return;
+  case BasicOpType_Ternary: {
+    //if (OpInputFlags & OP_INPUT_3_IS_SCALAR)
+    //  computeExpectedValues(Inputs.InputVector1, Inputs.InputVector2.value(), Inputs.ScalarInput.value());
+    //else
+    //  computeExpectedValues(Inputs.InputVector1, Inputs.InputVector2.value(), Inputs.InputVector3.value());
+    //return;
+  }}
+}
+
 // Generic computeExpectedValues for Unary ops. Derived classes override
 // computeExpectedValue.
 template <typename DataTypeT>
@@ -879,25 +902,29 @@ void TestConfig<DataTypeT>::computeExpectedValues(
       });
 }
 
-// Generic fillInputVectors. If the op doesn't use a given input then it simply
-// this function just doesn't fill it.
+// Generic fillInput. Fill the inputs based on the OpType and the
+// OpInputFlags.
 template <typename DataTypeT>
 void TestConfig<DataTypeT>::fillInputs(TestInputs<DataTypeT> &Inputs) const {
 
-    auto fillVecFromValueSet = [](std::optional<std::vector<DataTypeT>> &Vec,
+
+    auto fillVecFromValueSet = [this](std::vector<DataTypeT> &Vec,
                               size_t ValueSetIndex,
                               size_t Count) {
-      if(!Vec.has_value())
-        Vec = std::vector<DataTypeT>();
-
       std::vector<DataTypeT> ValueSet = getInputValueSet(ValueSetIndex);
       for (size_t Index = 0; Index < Count; Index++) {
-        Vec->push_back(ValueSet[Index % ValueSet.size()]);
+        Vec.push_back(ValueSet[Index % ValueSet.size()]);
       }
     };
 
-    // All ops use InputVector1. And it's always a vector, not a scalar.
-    // So just fill it.
+    auto fillOptionalVecFromValueSet = [fillVecFromValueSet](std::optional<std::vector<DataTypeT>> &Vec,
+                          size_t ValueSetIndex, size_t Count) {
+        if (!Vec.has_value())
+          Vec = std::vector<DataTypeT>();
+
+        fillVecFromValueSet(*Vec, ValueSetIndex, Count);
+    };
+
     fillVecFromValueSet(Inputs.InputVector1, 1, LengthToTest);
 
     if (BasicOpType == BasicOpType_Unary)
@@ -907,9 +934,9 @@ void TestConfig<DataTypeT>::fillInputs(TestInputs<DataTypeT> &Inputs) const {
                    BasicOpType == BasicOpType_Ternary);
 
     if (OpInputFlags & OP_INPUT_2_IS_SCALAR)
-      fillVecFromValueSet(Inputs.ScalarInput, 2, 1);
+      fillOptionalVecFromValueSet(Inputs.ScalarInput, 2, 1);
     else
-      fillVecFromValueSet(Inputs.InputVector2, 2, LengthToTest);
+      fillOptionalVecFromValueSet(Inputs.InputVector2, 2, LengthToTest);
 
     if (BasicOpType == BasicOpType_Binary)
       return;
@@ -917,11 +944,10 @@ void TestConfig<DataTypeT>::fillInputs(TestInputs<DataTypeT> &Inputs) const {
     DXASSERT_NOMSG(BasicOpType == BasicOpType_Ternary);
 
     if (OpInputFlags & OP_INPUT_3_IS_SCALAR)
-      fillVecFromValueSet(Inputs.ScalarInput, 3, 1);
+      fillOptionalVecFromValueSet(Inputs.ScalarInput, 3, 1);
     else
-      fillVecFromValueSet(Inputs.InputVector3, 3, LengthToTest);
+      fillOptionalVecFromValueSet(Inputs.InputVector3, 3, LengthToTest);
 }
-
 
 template <typename DataTypeT>
 TestConfigAsType<DataTypeT>::TestConfigAsType(
