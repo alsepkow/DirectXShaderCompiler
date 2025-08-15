@@ -587,11 +587,11 @@ void OpTest::testBaseMethod(
   TestConfig->computeExpectedValues(Inputs);
   // TODO: I think we should just pass all of the input vectors to a
   // 'computeExpectedValues' And the configs can override appropriately.
-  //if (IsVectorBinaryOp)
+  // if (IsVectorBinaryOp)
   //  TestConfig->computeExpectedValues(InputVector1, InputVector2);
-  //else if (TestConfig->isScalarOp())
+  // else if (TestConfig->isScalarOp())
   //  TestConfig->computeExpectedValues(InputVector1, ScalarInput[0]);
-  //else // Must be a unary op
+  // else // Must be a unary op
   //  TestConfig->computeExpectedValues(InputVector1);
 
   if (LogInputs) {
@@ -645,7 +645,8 @@ void OpTest::testBaseMethod(
         // for scalar inputs. Which are.....args.
         if (0 == _stricmp(Name, "InputFuncArgs")) {
           if (Inputs.ScalarInput.has_value())
-            fillShaderBufferFromLongVectorData(ShaderData, Inputs.ScalarInput.value());
+            fillShaderBufferFromLongVectorData(ShaderData,
+                                               Inputs.ScalarInput.value());
           return;
         }
 
@@ -658,14 +659,16 @@ void OpTest::testBaseMethod(
         // Process the callback for the InputVector2 resource.
         if (0 == _stricmp(Name, "InputVector2")) {
           if (Inputs.InputVector2.has_value())
-            fillShaderBufferFromLongVectorData(ShaderData, Inputs.InputVector2.value());
+            fillShaderBufferFromLongVectorData(ShaderData,
+                                               Inputs.InputVector2.value());
           return;
         }
 
         // Process the callback for the InputVector3 resource.
-        if (0 == _stricmp(Name, "InputVector3") ) {
+        if (0 == _stricmp(Name, "InputVector3")) {
           if (Inputs.InputVector3.has_value())
-            fillShaderBufferFromLongVectorData(ShaderData, Inputs.InputVector3.value());
+            fillShaderBufferFromLongVectorData(ShaderData,
+                                               Inputs.InputVector3.value());
           return;
         }
 
@@ -748,24 +751,21 @@ std::string TestConfig<DataTypeT>::getCompilerOptionsString() const {
   // flags. And probably come up with a better name for
   // -DOPERAND_IS_SCALAR_BITFIELD
   CompilerOptions << " -DBASIC_OP_TYPE=";
-  if( BasicOpType == BasicOpType_Unary ) {
+  if (BasicOpType == BasicOpType_Unary) {
     CompilerOptions << "0x1";
     CompilerOptions << " -DOPERAND_IS_SCALAR_BITFIELD=0x0";
-  }
-  else if (BasicOpType == BasicOpType_Binary) {
+  } else if (BasicOpType == BasicOpType_Binary) {
     CompilerOptions << "0x2";
     CompilerOptions << " -DOPERAND_IS_SCALAR_BITFIELD=0x0";
-  }
-  else if (BasicOpType == BasicOpType_ScalarBinary) {
+  } else if (BasicOpType == BasicOpType_ScalarBinary) {
     CompilerOptions << "0x2";
     CompilerOptions << " -DOPERAND_IS_SCALAR_BITFIELD=0x2";
-  }
-  else if (BasicOpType == BasicOpType_Ternary) {
+  } else if (BasicOpType == BasicOpType_Ternary) {
     CompilerOptions << "0x3";
     CompilerOptions << " -DOPERAND_IS_SCALAR_BITFIELD=0x0";
-  }
-  else {
-    LOG_ERROR_FMT_THROW(L"Invalid BasicOpType: %d", static_cast<int>(BasicOpType));
+  } else {
+    LOG_ERROR_FMT_THROW(L"Invalid BasicOpType: %d",
+                        static_cast<int>(BasicOpType));
   }
 
   return CompilerOptions.str();
@@ -847,122 +847,51 @@ bool TestConfig<DataTypeT>::verifyOutput(
                         ValidationType);
 }
 
-template <typename DataTypeT>
-void TestConfig<DataTypeT>::computeExpectedValues(const TestInputs<DataTypeT> &Inputs) {
-
-  switch (BasicOpType) {
-  case BasicOpType_Binary:
-    if (Inputs.ScalarInput.has_value())
-      computeExpectedValues(Inputs.InputVector1, Inputs.ScalarInput.value()[0]);
-    else 
-      computeExpectedValues(Inputs.InputVector1, Inputs.InputVector2.value());
-    return;
-  case BasicOpType_Ternary: {
-   // // ScalarInput is optional, but if they are present, they are stored in
-   // // the order that they will be used as operands.
-   // if (Inputs.ScalarInput().has_value()) {
-   //   auto &ScalarInput = Inputs.ScalarInput.value();
-   //   if(ScalarInput.size() == 1) {
-   //     computeExpectedValues(Inputs.InputVector1, ScalarInput[0],
-   //                           Inputs.InputVector3.value());
-   //     return;
-   //   } else if (ScalarInput.size() == 2) {
-   //     computeExpectedValues(Inputs.InputVector1, ScalarInput[0],
-   //                           ScalarInput[1]);
-   //     return;
-   //   } else {
-   //     LOG_ERROR_FMT_THROW(L"Invalid ScalarInput size: %zu. Expected 1 or 2.",
-   //                         ScalarInput.size());
-   //   }
-   // }
-
-   // computeExpectedValues(Inputs.InputVector1, Inputs.InputVector2.value(),
-   //                           Inputs.InputVector3.value());
-    return;
-  }
-  default:
-    LOG_ERROR_FMT_THROW(L"Invalid BasicOpType: %d", static_cast<int>(BasicOpType));
-  }
-}
-
-// Generic computeExpectedValues for Binary ops. Derived classes override
-// computeExpectedValue.
-template <typename DataTypeT>
-void TestConfig<DataTypeT>::computeExpectedValues(
-    const std::vector<DataTypeT> &InputVector1,
-    const std::vector<DataTypeT> &InputVector2) {
-
-  DXASSERT_NOMSG(BasicOpType == BasicOpType_Binary);
-  DXASSERT_NOMSG(!(OpInputFlags & OP_INPUT_2_IS_SCALAR));
-
-  fillExpectedVector<DataTypeT>(
-      ExpectedVector, InputVector1.size(), [&](size_t Index) {
-        return computeExpectedValue(InputVector1[Index], InputVector2[Index]);
-      });
-}
-
-// Generic computeExpectedValues for Scalar Binary ops. Derived classes override
-// computeExpectedValue.
-template <typename DataTypeT>
-void TestConfig<DataTypeT>::computeExpectedValues(
-    const std::vector<DataTypeT> &InputVector1, const DataTypeT &ScalarInput) {
-
-  DXASSERT_NOMSG(BasicOpType == BasicOpType_Binary);
-  DXASSERT_NOMSG(OpInputFlags & OP_INPUT_2_IS_SCALAR);
-
-  fillExpectedVector<DataTypeT>(
-      ExpectedVector, InputVector1.size(), [&](size_t Index) {
-        return computeExpectedValue(InputVector1[Index], ScalarInput);
-      });
-}
-
 // Generic fillInput. Fill the inputs based on the OpType and the
 // OpInputFlags.
 template <typename DataTypeT>
 void TestConfig<DataTypeT>::fillInputs(TestInputs<DataTypeT> &Inputs) const {
 
+  auto fillVecFromValueSet = [this](std::vector<DataTypeT> &Vec,
+                                    size_t ValueSetIndex, size_t Count) {
+    std::vector<DataTypeT> ValueSet = getInputValueSet(ValueSetIndex);
+    for (size_t Index = 0; Index < Count; Index++) {
+      Vec.push_back(ValueSet[Index % ValueSet.size()]);
+    }
+  };
 
-    auto fillVecFromValueSet = [this](std::vector<DataTypeT> &Vec,
-                              size_t ValueSetIndex,
-                              size_t Count) {
-      std::vector<DataTypeT> ValueSet = getInputValueSet(ValueSetIndex);
-      for (size_t Index = 0; Index < Count; Index++) {
-        Vec.push_back(ValueSet[Index % ValueSet.size()]);
-      }
-    };
-
-    auto fillOptionalVecFromValueSet = [fillVecFromValueSet](std::optional<std::vector<DataTypeT>> &Vec,
-                          size_t ValueSetIndex, size_t Count) {
+  auto fillOptionalVecFromValueSet =
+      [fillVecFromValueSet](std::optional<std::vector<DataTypeT>> &Vec,
+                            size_t ValueSetIndex, size_t Count) {
         if (!Vec.has_value())
           Vec = std::vector<DataTypeT>();
 
         fillVecFromValueSet(*Vec, ValueSetIndex, Count);
-    };
+      };
 
-    fillVecFromValueSet(Inputs.InputVector1, 1, LengthToTest);
+  fillVecFromValueSet(Inputs.InputVector1, 1, LengthToTest);
 
-    if (BasicOpType == BasicOpType_Unary)
-      return;
+  if (BasicOpType == BasicOpType_Unary)
+    return;
 
-    DXASSERT_NOMSG(BasicOpType == BasicOpType_Binary ||
-                   BasicOpType == BasicOpType_Ternary);
+  DXASSERT_NOMSG(BasicOpType == BasicOpType_Binary ||
+                 BasicOpType == BasicOpType_Ternary);
 
-    if (OpInputFlags & OP_INPUT_2_IS_SCALAR)
-      fillOptionalVecFromValueSet(Inputs.ScalarInput, 2, 1);
-    else
-      fillOptionalVecFromValueSet(Inputs.InputVector2, 2, LengthToTest);
+  if (OpInputFlags & OP_INPUT_2_IS_SCALAR)
+    fillOptionalVecFromValueSet(Inputs.ScalarInput, 2, 1);
+  else
+    fillOptionalVecFromValueSet(Inputs.InputVector2, 2, LengthToTest);
 
-    if (BasicOpType == BasicOpType_Binary)
-      return;
+  if (BasicOpType == BasicOpType_Binary)
+    return;
 
-    DXASSERT_NOMSG(BasicOpType == BasicOpType_Ternary);
+  DXASSERT_NOMSG(BasicOpType == BasicOpType_Ternary);
 
-    if (OpInputFlags & OP_INPUT_3_IS_SCALAR)
-      fillOptionalVecFromValueSet(Inputs.ScalarInput, 3, 1);
-    else
-      fillOptionalVecFromValueSet(Inputs.InputVector3, 3, LengthToTest);
+  if (OpInputFlags & OP_INPUT_3_IS_SCALAR)
+    fillOptionalVecFromValueSet(Inputs.ScalarInput, 3, 1);
+  else
+    fillOptionalVecFromValueSet(Inputs.InputVector3, 3, LengthToTest);
 }
-
 
 template <typename DataTypeT>
 TestConfigAsType<DataTypeT>::TestConfigAsType(
@@ -1237,7 +1166,8 @@ void TestConfigUnaryMath<DataTypeT>::computeExpectedValues(
     return;
   }
 
-  TestConfigBasicUnary<DataTypeT>::computeExpectedValues(InputVector1, ExpectedVector);
+  TestConfigBasicUnary<DataTypeT>::computeExpectedValues(InputVector1,
+                                                         ExpectedVector);
 }
 
 template <typename DataTypeT>
