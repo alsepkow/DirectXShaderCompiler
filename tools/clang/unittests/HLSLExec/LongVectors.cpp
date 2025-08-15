@@ -368,8 +368,7 @@ TEST_F(OpTest, binaryMathOpTest) {
 
   std::wstring DataType(Handler.GetTableParamByName(L"DataType")->m_str);
   std::wstring OpTypeString(Handler.GetTableParamByName(L"OpTypeEnum")->m_str);
-  const bool Input2IsScalar =
-      Handler.GetTableParamByName(L"Input2IsScalar")->m_bool;
+  const bool Input2IsScalar(Handler.GetTableParamByName(L"Input2IsScalar")->m_bool);
 
   auto OpTypeMD = getBinaryMathOpType(OpTypeString);
   if (Input2IsScalar)
@@ -386,9 +385,9 @@ TEST_F(OpTest, ternaryMathOpTest) {
   const size_t TableSize = sizeof(ternaryOpParameters) / sizeof(TableParameter);
   TableParameterHandler Handler(ternaryOpParameters, TableSize);
 
-  // TODO: Need more?
   std::wstring DataType(Handler.GetTableParamByName(L"DataType")->m_str);
   std::wstring OpTypeString(Handler.GetTableParamByName(L"OpTypeEnum")->m_str);
+
   const bool Input2IsScalar =
       Handler.GetTableParamByName(L"Input2IsScalar")->m_bool;
   const bool Input3IsScalar =
@@ -724,31 +723,39 @@ std::string TestConfig<DataTypeT>::getCompilerOptionsString() const {
 
   CompilerOptions << " -DOUT_TYPE=" << getHLSLOutputTypeString();
 
-  // TODO: WIP for updated ternary logic.
-  // NEED to add a getter for the scalar bit field. Being lazy for now to test
-  // the defines.
-  // TODO: Do the right thing for scalar bit field based of of Input whatever ..
-  // flags. And probably come up with a better name for
-  // -DOPERAND_IS_SCALAR_BITFIELD
   CompilerOptions << " -DBASIC_OP_TYPE=";
-  if (BasicOpType == BasicOpType_Unary) {
+  if (BasicOpType == BasicOpType_Unary)
     CompilerOptions << "0x1";
-    CompilerOptions << " -DOPERAND_IS_SCALAR_BITFIELD=0x0";
-  } else if (BasicOpType == BasicOpType_Binary) {
+  else if (BasicOpType == BasicOpType_Binary)
     CompilerOptions << "0x2";
-    CompilerOptions << " -DOPERAND_IS_SCALAR_BITFIELD=0x0";
-  } else if (BasicOpType == BasicOpType_ScalarBinary) {
-    CompilerOptions << "0x2";
-    CompilerOptions << " -DOPERAND_IS_SCALAR_BITFIELD=0x2";
-  } else if (BasicOpType == BasicOpType_Ternary) {
+  else if (BasicOpType == BasicOpType_Ternary)
     CompilerOptions << "0x3";
-    CompilerOptions << " -DOPERAND_IS_SCALAR_BITFIELD=0x0";
-  } else {
-    LOG_ERROR_FMT_THROW(L"Invalid BasicOpType: %d",
+  else
+    LOG_ERROR_FMT_THROW(L"Unrecognized BasicOpType: %d",
                         static_cast<int>(BasicOpType));
-  }
+
+  // TODO: probably come up with a better name for
+  // -DOPERAND_IS_SCALAR_BITFIELD
+  CompilerOptions << " -DOPERAND_IS_SCALAR_BITFIELD=";
+  CompilerOptions << "0x" << std::hex << OpInputFlags;
 
   return CompilerOptions.str();
+}
+
+template <typename DataTypeT>
+size_t TestConfig<DataTypeT>::getNumOperands() const {
+  if (BasicOpType == BasicOpType_Unary)
+    return 1;
+
+  if (BasicOpType == BasicOpType_Binary)
+    return 2;
+
+  if (BasicOpType == BasicOpType_Ternary)
+    return 3;
+
+  LOG_ERROR_FMT_THROW(L"Invalid BasicOpType: %d",
+                      static_cast<int>(BasicOpType));
+  return 0;
 }
 
 template <typename DataTypeT>
@@ -912,6 +919,26 @@ TestConfigAsType<DataTypeT>::TestConfigAsType(
   default:
     LOG_ERROR_FMT_THROW(L"Unsupported AsTypeOpType: %ls", OpTypeName.c_str());
   }
+}
+
+template <typename DataTypeT>
+void TestConfigAsType<DataTypeT>::computeExpectedValues(const TestInputs<DataTypeT> &Inputs) {
+
+    if(BasicOpType != BasicOpType_Unary && BasicOpType != BasicOpType_Binary) {
+      LOG_ERROR_FMT_THROW(
+          L"Programmer Error: computeExpectedValue called with "
+          L"unexpected BasicOpType: %d",
+          static_cast<int>(BasicOpType));
+    }
+
+    switch (BasicOpType) {
+    case BasicOpType_Unary:
+      computeExpectedValues(Inputs.InputVector1);
+      return;
+    case BasicOpType_Binary:
+      computeExpectedValues(Inputs.InputVector1, Inputs.InputVector2.value());
+      return;
+    }
 }
 
 template <typename DataTypeT>
@@ -1162,44 +1189,13 @@ TestConfigBinaryMath<DataTypeT>::TestConfigBinaryMath(
     ValidationType = ValidationType_Ulp;
   }
 
-  switch (OpType) {
-  case BinaryMathOpType_Scalar_Add:
-  case BinaryMathOpType_Scalar_Multiply:
-  case BinaryMathOpType_Scalar_Subtract:
-  case BinaryMathOpType_Scalar_Divide:
-  case BinaryMathOpType_Scalar_Modulus:
-  case BinaryMathOpType_Scalar_Min:
-  case BinaryMathOpType_Scalar_Max:
-    BasicOpType = BasicOpType_ScalarBinary;
-    break;
-  case BinaryMathOpType_Multiply:
-  case BinaryMathOpType_Add:
-  case BinaryMathOpType_Subtract:
-  case BinaryMathOpType_Divide:
-  case BinaryMathOpType_Modulus:
-  case BinaryMathOpType_Min:
-  case BinaryMathOpType_Max:
-    BasicOpType = BasicOpType_Binary;
-    break;
-  default:
-    LOG_ERROR_FMT_THROW(L"Invalid BinaryMathOpType: %ls", OpTypeName.c_str());
-  }
+  BasicOpType = BasicOpType_Binary;
 }
 
 template <typename DataTypeT>
 DataTypeT TestConfigBinaryMath<DataTypeT>::computeExpectedValue(
     const DataTypeT &A, const DataTypeT &B) const {
   switch (OpType) {
-  case BinaryMathOpType_Scalar_Add:
-    return A + B;
-  case BinaryMathOpType_Scalar_Multiply:
-    return A * B;
-  case BinaryMathOpType_Scalar_Subtract:
-    return A - B;
-  case BinaryMathOpType_Scalar_Divide:
-    return A / B;
-  case BinaryMathOpType_Scalar_Modulus:
-    return mod(A, B);
   case BinaryMathOpType_Multiply:
     return A * B;
   case BinaryMathOpType_Add:
@@ -1215,10 +1211,6 @@ DataTypeT TestConfigBinaryMath<DataTypeT>::computeExpectedValue(
     // macro defintions for min and max in windows.h
     return (std::min)(A, B);
   case BinaryMathOpType_Max:
-    return (std::max)(A, B);
-  case BinaryMathOpType_Scalar_Min:
-    return (std::min)(A, B);
-  case BinaryMathOpType_Scalar_Max:
     return (std::max)(A, B);
   default:
     LOG_ERROR_FMT_THROW(L"Unknown BinaryMathOpType: %ls", OpTypeName.c_str());

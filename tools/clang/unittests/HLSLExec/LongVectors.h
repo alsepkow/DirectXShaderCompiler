@@ -129,7 +129,6 @@ enum BasicOpType {
   BasicOpType_Unary,
   BasicOpType_Binary,
   BasicOpType_Ternary,
-  BasicOpType_ScalarBinary,
   BasicOpType_EnumValueCount
 };
 
@@ -271,11 +270,6 @@ getUnaryMathOpType(const std::wstring &OpTypeString) {
 }
 
 enum BinaryMathOpType {
-  BinaryMathOpType_Scalar_Add,
-  BinaryMathOpType_Scalar_Multiply,
-  BinaryMathOpType_Scalar_Subtract,
-  BinaryMathOpType_Scalar_Divide,
-  BinaryMathOpType_Scalar_Modulus,
   BinaryMathOpType_Multiply,
   BinaryMathOpType_Add,
   BinaryMathOpType_Subtract,
@@ -283,23 +277,11 @@ enum BinaryMathOpType {
   BinaryMathOpType_Modulus,
   BinaryMathOpType_Min,
   BinaryMathOpType_Max,
-  BinaryMathOpType_Scalar_Min,
-  BinaryMathOpType_Scalar_Max,
   BinaryMathOpType_EnumValueCount
 };
 
 static const OpTypeMetaData<BinaryMathOpType>
     binaryMathOpTypeStringToOpMetaData[] = {
-        {L"BinaryMathOpType_Scalar_Add", BinaryMathOpType_Scalar_Add,
-         std::nullopt, "+"},
-        {L"BinaryMathOpType_Scalar_Multiply", BinaryMathOpType_Scalar_Multiply,
-         std::nullopt, "*"},
-        {L"BinaryMathOpType_Scalar_Subtract", BinaryMathOpType_Scalar_Subtract,
-         std::nullopt, "-"},
-        {L"BinaryMathOpType_Scalar_Divide", BinaryMathOpType_Scalar_Divide,
-         std::nullopt, "/"},
-        {L"BinaryMathOpType_Scalar_Modulus", BinaryMathOpType_Scalar_Modulus,
-         std::nullopt, "%"},
         {L"BinaryMathOpType_Add", BinaryMathOpType_Add, std::nullopt, "+"},
         {L"BinaryMathOpType_Multiply", BinaryMathOpType_Multiply, std::nullopt,
          "*"},
@@ -311,10 +293,6 @@ static const OpTypeMetaData<BinaryMathOpType>
          "%"},
         {L"BinaryMathOpType_Min", BinaryMathOpType_Min, "min", ","},
         {L"BinaryMathOpType_Max", BinaryMathOpType_Max, "max", ","},
-        {L"BinaryMathOpType_Scalar_Min", BinaryMathOpType_Scalar_Min, "min",
-         ","},
-        {L"BinaryMathOpType_Scalar_Max", BinaryMathOpType_Scalar_Max, "max",
-         ","},
 };
 
 static_assert(_countof(binaryMathOpTypeStringToOpMetaData) ==
@@ -545,22 +523,7 @@ public:
 
   bool verifyOutput(const std::shared_ptr<st::ShaderOpTestResult> &TestResult);
 
-  size_t getNumOperands() const {
-    switch (BasicOpType) {
-    case BasicOpType_Unary:
-      return 1;
-    case BasicOpType_Binary:
-      return 2;
-    case BasicOpType_Ternary:
-      return 3;
-    default:
-      LOG_ERROR_FMT_THROW(
-          L"Programmer Error: getNumOperands called with unexpected "
-          L"BasicOpType: %d",
-          static_cast<int>(BasicOpType));
-      return 0;
-    }
-  }
+  size_t getNumOperands() const;
 
 private:
   std::vector<DataTypeT> getInputValueSet(size_t ValueSetIndex) const;
@@ -615,23 +578,7 @@ class TestConfigAsType : public TestConfig<DataTypeT> {
 public:
   TestConfigAsType(const OpTypeMetaData<AsTypeOpType> &OpTypeMd);
 
-  // Overridden from TestConfig.
-  void computeExpectedValues(const TestInputs<DataTypeT> &Inputs) override {
-    // TODO: Put the error condition first?
-    switch (BasicOpType) {
-    case BasicOpType_Unary:
-      computeExpectedValues(Inputs.InputVector1);
-      return;
-    case BasicOpType_Binary:
-      computeExpectedValues(Inputs.InputVector1, Inputs.InputVector2.value());
-      return;
-    default:
-      LOG_ERROR_FMT_THROW(
-          L"Programmer Error: computeExpectedValues called with "
-          L"unexpected BasicOpType: %d",
-          static_cast<int>(BasicOpType));
-    }
-  }
+  void computeExpectedValues(const TestInputs<DataTypeT> &Inputs) override;
 
 private:
   // Private implementation that dispatches based on the output type.
@@ -775,9 +722,6 @@ public:
                                                            ExpectedVector);
   }
 
-  // Overridden from TestConfigBasicUnary. Called via our override of
-  // TestConfigBasicUnary::computeExpectedValuesUnary(Inputs)
-  // TODO: get id of the function its calling and implement those guts in here.
   DataTypeT computeExpectedValue(const DataTypeT &A) const override;
 
 private:
@@ -841,7 +785,6 @@ public:
   DataTypeT computeExpectedValue(const DataTypeT &A,
                                  const DataTypeT &B) const override;
 
-  // Overridden from TestConfig.
   void computeExpectedValues(const TestInputs<DataTypeT> &Inputs) override {
     TestConfigBasicBinary<DataTypeT>::computeExpectedValues(Inputs,
                                                             ExpectedVector);

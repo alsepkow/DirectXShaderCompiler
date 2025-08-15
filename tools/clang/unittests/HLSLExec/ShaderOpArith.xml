@@ -3791,7 +3791,7 @@ void MSMain(uint GID : SV_GroupIndex,
      -->
     <Shader Name="CS" Target="cs_6_9" EntryPoint="main">
       <![CDATA[
-        RWByteAddressBuffer g_InputFuncArgs : register(u0);
+        RWByteAddressBuffer g_InputScalarArgs : register(u0);
         RWByteAddressBuffer g_InputVector1 : register(u1);
         RWByteAddressBuffer g_InputVector2 : register(u2);
         RWByteAddressBuffer g_InputVector3 : register(u3);

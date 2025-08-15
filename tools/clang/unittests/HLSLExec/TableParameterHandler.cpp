@@ -179,8 +179,8 @@ HRESULT TableParameterHandler::ParseTableRow() {
       break;
     case TableParameter::BOOL:
       if (FAILED(WEX::TestExecution::TestData::TryGetValue(table[i].m_name,
-                                                           table[i].m_str)) &&
-          table[i].m_bool) {
+                                                           table[i].m_bool)) &&
+          table[i].m_required) {
         hlsl_test::LogErrorFmt(L"Failed to get %s", table[i].m_name);
         return E_FAIL;
       }
