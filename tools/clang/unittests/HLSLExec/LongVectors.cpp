@@ -754,12 +754,12 @@ std::string TestConfig<DataTypeT>::getCompilerOptionsString() const {
 template <typename DataTypeT>
 std::vector<DataTypeT>
 TestConfig<DataTypeT>::getInputValueSet(size_t ValueSetIndex) const {
-  if (BasicOpType == BasicOpType_Unary && ValueSetIndex == 0 )
+  if (BasicOpType == BasicOpType_Unary && ValueSetIndex == 0)
     return getInputValueSetByKey<DataTypeT>(InputValueSetKeys[ValueSetIndex]);
 
   if (BasicOpType == BasicOpType_Binary && ValueSetIndex <= 1)
     return getInputValueSetByKey<DataTypeT>(InputValueSetKeys[ValueSetIndex]);
- 
+
   if (BasicOpType == BasicOpType_Ternary && ValueSetIndex <= 2)
     return getInputValueSetByKey<DataTypeT>(InputValueSetKeys[ValueSetIndex]);
 
@@ -860,7 +860,8 @@ void TestConfig<DataTypeT>::fillInputs(TestInputs<DataTypeT> &Inputs) const {
   if (OpInputFlags & OP_INPUT_2_IS_SCALAR)
     fillOptionalVecFromValueSet(Inputs.ScalarInput, ValueSetIndex++, 1);
   else
-    fillOptionalVecFromValueSet(Inputs.InputVector2, ValueSetIndex++, LengthToTest);
+    fillOptionalVecFromValueSet(Inputs.InputVector2, ValueSetIndex++,
+                                LengthToTest);
 
   if (BasicOpType == BasicOpType_Binary)
     return;
@@ -870,7 +871,8 @@ void TestConfig<DataTypeT>::fillInputs(TestInputs<DataTypeT> &Inputs) const {
   if (OpInputFlags & OP_INPUT_3_IS_SCALAR)
     fillOptionalVecFromValueSet(Inputs.ScalarInput, ValueSetIndex++, 1);
   else
-    fillOptionalVecFromValueSet(Inputs.InputVector3, ValueSetIndex++, LengthToTest);
+    fillOptionalVecFromValueSet(Inputs.InputVector3, ValueSetIndex++,
+                                LengthToTest);
 }
 
 template <typename DataTypeT>

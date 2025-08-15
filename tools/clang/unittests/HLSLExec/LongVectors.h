@@ -527,13 +527,13 @@ public:
 
   void fillInputs(TestInputs<DataTypeT> &Inputs) const;
 
-  virtual void
-  computeExpectedValues(const TestInputs<DataTypeT> &Inputs) = 0;
+  virtual void computeExpectedValues(const TestInputs<DataTypeT> &Inputs) = 0;
 
-  void setInputValueSetKey(const std::wstring &InputValueSetName, size_t Index) {
+  void setInputValueSetKey(const std::wstring &InputValueSetName,
+                           size_t Index) {
     // TODO: Log the index on error case
     VERIFY_IS_TRUE(Index < (InputValueSetKeys.size() - 1),
-                          L"Index out of bounds for InputValueSetKeys");
+                   L"Index out of bounds for InputValueSetKeys");
     InputValueSetKeys[Index] = InputValueSetName;
   }
 
@@ -578,9 +578,9 @@ private:
                     const std::vector<OutputDataTypeT> &ExpectedVector);
 
   // The input value sets are used to fill the shader buffer.
-  std::array<std::wstring, 3> InputValueSetKeys = {
-      L"DefaultInputValueSet1", L"DefaultInputValueSet2",
-      L"DefaultInputValueSet3"};
+  std::array<std::wstring, 3> InputValueSetKeys = {L"DefaultInputValueSet1",
+                                                   L"DefaultInputValueSet2",
+                                                   L"DefaultInputValueSet3"};
 
 protected:
   // Prevent instances of TestConfig from being created directly. Want to force
@@ -843,7 +843,8 @@ public:
 
   // Overridden from TestConfig.
   void computeExpectedValues(const TestInputs<DataTypeT> &Inputs) override {
-    TestConfigBasicBinary<DataTypeT>::computeExpectedValues(Inputs, ExpectedVector);
+    TestConfigBasicBinary<DataTypeT>::computeExpectedValues(Inputs,
+                                                            ExpectedVector);
   }
 
 private:
@@ -870,9 +871,7 @@ class TestConfigTernaryMath : public TestConfig<DataTypeT> {
 public:
   TestConfigTernaryMath(const OpTypeMetaData<TernaryMathOpType> &OpTypeMd);
 
-  // Overridden from TestConfig.
-  void computeExpectedValues(const TestInputs<DataTypeT> &Inputs) override
-  {
+  void computeExpectedValues(const TestInputs<DataTypeT> &Inputs) override {
     // TODO: Implement
   }
 
