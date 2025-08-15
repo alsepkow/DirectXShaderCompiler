@@ -120,11 +120,17 @@ bool doValuesMatch(double A, double B, float Tolerance,
 template <typename DataTypeT>
 bool doVectorsMatch(const std::vector<DataTypeT> &ActualValues,
                     const std::vector<DataTypeT> &ExpectedValues,
-                    float Tolerance, ValidationType ValidationType) {
+                    float Tolerance, ValidationType ValidationType,
+                    bool VerboseLogging) {
 
   DXASSERT(
       ActualValues.size() == ExpectedValues.size(),
       "Programmer error: Actual and Expected vectors must be the same size.");
+
+  if (VerboseLogging) {
+    logLongVector(ActualValues, L"ActualValues");
+    logLongVector(ExpectedValues, L"ExpectedValues");
+  }
 
   // Stash mismatched indexes for easy failure logging later
   std::vector<size_t> MismatchedIndexes;
@@ -299,6 +305,13 @@ bool OpTest::classSetup() {
       hlsl_test::LogCommentFmt(L"Debug layer not enabled.");
     else
       hlsl_test::LogCommentFmt(L"Debug layer enabled.");
+
+    VERIFY_SUCCEEDED(WEX::TestExecution::RuntimeParameters::TryGetValue(
+        L"VerboseLogging", VerboseLogging));
+    if (VerboseLogging)
+      WEX::Logging::Log::Comment(L"Verbose logging is enabled for this test.");
+    else
+      WEX::Logging::Log::Comment(L"Verbose logging is disabled for this test.");
   }
 
   return true;
@@ -384,8 +397,6 @@ TEST_F(OpTest, ternaryMathOpTest) {
   WEX::TestExecution::SetVerifyOutput verifySettings(
       WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
 
-  using namespace WEX::Common;
-
   const size_t TableSize = sizeof(ternaryOpParameters) / sizeof(TableParameter);
   TableParameterHandler Handler(ternaryOpParameters, TableSize);
 
@@ -410,8 +421,6 @@ template <typename OpTypeT>
 void OpTest::dispatchTestByDataType(const OpTypeMetaData<OpTypeT> &OpTypeMd,
                                     std::wstring DataType,
                                     TableParameterHandler &Handler) {
-  using namespace WEX::Common;
-
   switch (Hash_djb2a(DataType)) {
   case Hash_djb2a(L"bool"):
     dispatchTestByVectorLength<HLSLBool_t>(OpTypeMd, Handler);
@@ -453,7 +462,6 @@ template <>
 void OpTest::dispatchTestByDataType(
     const OpTypeMetaData<UnaryMathOpType> &OpTypeMd, std::wstring DataType,
     TableParameterHandler &Handler) {
-  using namespace WEX::Common;
 
   // Unary math ops don't support HLSLBool_t. If we included a dispatcher for
   // them by allowing the generic dispatchTestByDataType then we would get
@@ -498,7 +506,6 @@ template <>
 void OpTest::dispatchTestByDataType(
     const OpTypeMetaData<TrigonometricOpType> &OpTypeMd, std::wstring DataType,
     TableParameterHandler &Handler) {
-  using namespace WEX::Common;
 
   if (DataType == L"float16")
     dispatchTestByVectorLength<HLSLHalf_t>(OpTypeMd, Handler);
@@ -520,6 +527,7 @@ void OpTest::dispatchTestByVectorLength(const OpTypeMetaData<OpTypeT> &OpTypeMd,
       WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
 
   auto TestConfig = makeTestConfig<DataTypeT>(OpTypeMd);
+  TestConfig->setVerboseLogging(VerboseLogging);
   auto OperandCount = TestConfig->getNumOperands();
 
   std::wstring Name = L"InputValueSetName";
@@ -557,10 +565,6 @@ void OpTest::testBaseMethod(
   WEX::TestExecution::SetVerifyOutput verifySettings(
       WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
 
-  bool LogInputs = false;
-  WEX::TestExecution::RuntimeParameters::TryGetValue(L"LongVectorLogInputs",
-                                                     LogInputs);
-
   CComPtr<ID3D12Device> D3DDevice;
   if (!createDevice(&D3DDevice, ExecTestUtils::D3D_SHADER_MODEL_6_9, false)) {
 #ifdef _HLK_CONF
@@ -579,7 +583,7 @@ void OpTest::testBaseMethod(
 
   TestConfig->computeExpectedValues(Inputs);
 
-  if (LogInputs) {
+  if (VerboseLogging) {
     logLongVector(Inputs.InputVector1, L"InputVector1");
     if (Inputs.InputVector2.has_value())
       logLongVector(Inputs.InputVector2.value(), L"InputVector2");
@@ -823,6 +827,9 @@ bool TestConfig<DataTypeT>::verifyOutput(
       L"verifyOutput with OpType: %ls ExpectedVector<%S>", OpTypeName.c_str(),
       typeid(OutputDataTypeT).name()));
 
+  DXASSERT(!ExpectedVector.empty(),
+           "Programmer Error: ExpectedVector is empty.");
+
   MappedData ShaderOutData;
   TestResult->Test->GetReadBackData("OutputVector", &ShaderOutData);
 
@@ -832,8 +839,8 @@ bool TestConfig<DataTypeT>::verifyOutput(
   fillLongVectorDataFromShaderBuffer(ShaderOutData, ActualValues,
                                      OutputVectorSize);
 
-  return doVectorsMatch(ActualValues, ExpectedVector, Tolerance,
-                        ValidationType);
+  return doVectorsMatch(ActualValues, ExpectedVector, Tolerance, ValidationType,
+                        VerboseLogging);
 }
 
 // Generic fillInput. Fill the inputs based on the OpType and the

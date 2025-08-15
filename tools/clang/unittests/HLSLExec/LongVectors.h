@@ -405,6 +405,7 @@ public:
 private:
   dxc::DxcDllSupport DxcDllSupport;
   bool Initialized = false;
+  bool VerboseLogging = false;
 };
 
 template <typename DataTypeT>
@@ -420,7 +421,8 @@ bool doValuesMatch(double A, double B, float Tolerance,
 template <typename DataTypeT>
 bool doVectorsMatch(const std::vector<DataTypeT> &ActualValues,
                     const std::vector<DataTypeT> &ExpectedValues,
-                    float Tolerance, ValidationType ValidationType);
+                    float Tolerance, ValidationType ValidationType,
+                    bool VerboseLogging = false);
 
 template <typename DataTypeT>
 void logLongVector(const std::vector<DataTypeT> &Values,
@@ -558,6 +560,9 @@ public:
   void setLengthToTest(size_t LengthToTest) {
     this->LengthToTest = LengthToTest;
   }
+  void setVerboseLogging(bool VerboseLogging) {
+    this->VerboseLogging = VerboseLogging;
+  }
 
   std::string getCompilerOptionsString() const;
 
@@ -609,6 +614,7 @@ protected:
 
   // Just used for logging purposes.
   std::wstring OpTypeName = L"UnknownOpType";
+  bool VerboseLogging = false;
 
   const unsigned int OpInputFlags;
 }; // class TestConfig
@@ -856,7 +862,8 @@ public:
   TestConfigTernaryMath(const OpTypeMetaData<TernaryMathOpType> &OpTypeMd);
 
   void computeExpectedValues(const TestInputs<DataTypeT> &Inputs) override {
-    // TODO: Implement
+    TestConfigBasicTernary<DataTypeT>::computeExpectedValues(Inputs,
+                                                             ExpectedVector);
   }
 
   DataTypeT computeExpectedValue(const DataTypeT &A, const DataTypeT &B,
