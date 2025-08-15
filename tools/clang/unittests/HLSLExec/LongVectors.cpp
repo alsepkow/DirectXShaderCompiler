@@ -517,21 +517,15 @@ void OpTest::dispatchTestByVectorLength(const OpTypeMetaData<OpTypeT> &OpTypeMd,
       WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
 
   auto TestConfig = makeTestConfig<DataTypeT>(OpTypeMd);
+  auto OperandCount = TestConfig->getNumOperands();
 
-  // InputValueSetName1 is optional. So the string may be empty. An empty
-  // string will result in the default value set for this DataType being used.
-  std::wstring InputValueSet1(
-      Handler.GetTableParamByName(L"InputValueSetName1")->m_str);
-  if (!InputValueSet1.empty())
-    TestConfig->setInputValueSet1(InputValueSet1);
-
-  // InputValueSetName2 is optional. So the string may be empty. An empty
-  // string will result in the default value set for this DataType being used.
-  if (TestConfig->isBinaryOp()) {
-    std::wstring InputValueSet2(
-        Handler.GetTableParamByName(L"InputValueSetName2")->m_str);
-    if (!InputValueSet2.empty())
-      TestConfig->setInputValueSet2(InputValueSet2);
+  std::wstring Name = L"InputValueSetName";
+  for (size_t I = 0; I < OperandCount; I++) {
+    auto NameI = Name + std::to_wstring(I + 1);
+    std::wstring InputValueSetName(
+        Handler.GetTableParamByName(NameI.c_str())->m_str);
+    if (!InputValueSetName.empty())
+      TestConfig->setInputValueSetKey(InputValueSetName, I);
   }
 
   // Manual override to test a specific vector size. Convenient for debugging
@@ -560,10 +554,6 @@ void OpTest::testBaseMethod(
   WEX::TestExecution::SetVerifyOutput verifySettings(
       WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
 
-  const size_t VectorLengthToTest = TestConfig->getLengthToTest();
-  hlsl_test::LogCommentFmt(L"Running LongVectorOpTestBase<%S, %zu>",
-                           typeid(DataTypeT).name(), VectorLengthToTest);
-
   bool LogInputs = false;
   WEX::TestExecution::RuntimeParameters::TryGetValue(L"LongVectorLogInputs",
                                                      LogInputs);
@@ -585,14 +575,6 @@ void OpTest::testBaseMethod(
   TestConfig->fillInputs(Inputs);
 
   TestConfig->computeExpectedValues(Inputs);
-  // TODO: I think we should just pass all of the input vectors to a
-  // 'computeExpectedValues' And the configs can override appropriately.
-  // if (IsVectorBinaryOp)
-  //  TestConfig->computeExpectedValues(InputVector1, InputVector2);
-  // else if (TestConfig->isScalarOp())
-  //  TestConfig->computeExpectedValues(InputVector1, ScalarInput[0]);
-  // else // Must be a unary op
-  //  TestConfig->computeExpectedValues(InputVector1);
 
   if (LogInputs) {
     logLongVector(Inputs.InputVector1, L"InputVector1");
@@ -640,10 +622,8 @@ void OpTest::testBaseMethod(
           return;
         }
 
-        // Process the callback for the InputFuncArgs resource.
-        // TODO: update the comments here. This can be used for args, but also
-        // for scalar inputs. Which are.....args.
-        if (0 == _stricmp(Name, "InputFuncArgs")) {
+        // Process the callback for the InputScalarArgs resource.
+        if (0 == _stricmp(Name, "InputScalarArgs")) {
           if (Inputs.ScalarInput.has_value())
             fillShaderBufferFromLongVectorData(ShaderData,
                                                Inputs.ScalarInput.value());
@@ -774,20 +754,18 @@ std::string TestConfig<DataTypeT>::getCompilerOptionsString() const {
 template <typename DataTypeT>
 std::vector<DataTypeT>
 TestConfig<DataTypeT>::getInputValueSet(size_t ValueSetIndex) const {
+  if (BasicOpType == BasicOpType_Unary && ValueSetIndex == 0 )
+    return getInputValueSetByKey<DataTypeT>(InputValueSetKeys[ValueSetIndex]);
 
-  // Calling with ValueSetIndex == 2 is only valid for binary ops.
-  DXASSERT_NOMSG(!(ValueSetIndex == 2 && !isBinaryOp()));
+  if (BasicOpType == BasicOpType_Binary && ValueSetIndex <= 1)
+    return getInputValueSetByKey<DataTypeT>(InputValueSetKeys[ValueSetIndex]);
+ 
+  if (BasicOpType == BasicOpType_Ternary && ValueSetIndex <= 2)
+    return getInputValueSetByKey<DataTypeT>(InputValueSetKeys[ValueSetIndex]);
 
-  std::wstring InputValueSetName = L"";
-  if (ValueSetIndex == 1)
-    InputValueSetName = InputValueSetName1;
-  else if (ValueSetIndex == 2)
-    InputValueSetName = InputValueSetName2;
-  else
-    LOG_ERROR_FMT_THROW(L"Invalid ValueSetIndex: %zu. Expected 1 or 2.",
-                        ValueSetIndex);
-
-  return getInputValueSetByKey<DataTypeT>(InputValueSetName);
+  LOG_ERROR_FMT_THROW(L"Invalid ValueSetIndex: %d for OpType: %ls",
+                      ValueSetIndex, OpTypeName.c_str());
+  return std::vector<DataTypeT>();
 }
 
 template <typename DataTypeT>
@@ -869,7 +847,9 @@ void TestConfig<DataTypeT>::fillInputs(TestInputs<DataTypeT> &Inputs) const {
         fillVecFromValueSet(*Vec, ValueSetIndex, Count);
       };
 
-  fillVecFromValueSet(Inputs.InputVector1, 1, LengthToTest);
+  size_t ValueSetIndex = 0;
+
+  fillVecFromValueSet(Inputs.InputVector1, ValueSetIndex++, LengthToTest);
 
   if (BasicOpType == BasicOpType_Unary)
     return;
@@ -878,9 +858,9 @@ void TestConfig<DataTypeT>::fillInputs(TestInputs<DataTypeT> &Inputs) const {
                  BasicOpType == BasicOpType_Ternary);
 
   if (OpInputFlags & OP_INPUT_2_IS_SCALAR)
-    fillOptionalVecFromValueSet(Inputs.ScalarInput, 2, 1);
+    fillOptionalVecFromValueSet(Inputs.ScalarInput, ValueSetIndex++, 1);
   else
-    fillOptionalVecFromValueSet(Inputs.InputVector2, 2, LengthToTest);
+    fillOptionalVecFromValueSet(Inputs.InputVector2, ValueSetIndex++, LengthToTest);
 
   if (BasicOpType == BasicOpType_Binary)
     return;
@@ -888,9 +868,9 @@ void TestConfig<DataTypeT>::fillInputs(TestInputs<DataTypeT> &Inputs) const {
   DXASSERT_NOMSG(BasicOpType == BasicOpType_Ternary);
 
   if (OpInputFlags & OP_INPUT_3_IS_SCALAR)
-    fillOptionalVecFromValueSet(Inputs.ScalarInput, 3, 1);
+    fillOptionalVecFromValueSet(Inputs.ScalarInput, ValueSetIndex++, 1);
   else
-    fillOptionalVecFromValueSet(Inputs.InputVector3, 3, LengthToTest);
+    fillOptionalVecFromValueSet(Inputs.InputVector3, ValueSetIndex++, LengthToTest);
 }
 
 template <typename DataTypeT>

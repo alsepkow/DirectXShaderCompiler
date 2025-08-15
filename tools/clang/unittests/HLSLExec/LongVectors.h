@@ -82,6 +82,7 @@ template <typename DataTypeT> constexpr bool is16BitType() {
 template <typename DataTypeT> std::string getHLSLTypeString();
 
 enum OP_INPUT_FLAGS {
+  // TODO: Delete the first? We don't use it.
   OP_INPUT_1_IS_SCALAR = 0x1,
   OP_INPUT_2_IS_SCALAR = 0x2,
   OP_INPUT_3_IS_SCALAR = 0x4,
@@ -524,76 +525,51 @@ template <typename DataTypeT> class TestConfig {
 public:
   virtual ~TestConfig() = default;
 
-  // TODO: Can delete these?
-  bool isBinaryOp() const { return BasicOpType == BasicOpType_Binary; }
-  bool isUnaryOp() const { return BasicOpType == BasicOpType_Unary; }
-  virtual bool isScalarOp() const { return OpInputFlags != 0; };
-
   void fillInputs(TestInputs<DataTypeT> &Inputs) const;
 
-  // Helpers to get the hlsl type as a string for a given C++ type.
-  std::string getHLSLInputTypeString() const {
-    return getHLSLTypeString<DataTypeT>();
-  }
-  std::string getHLSLOutputTypeString() const;
-
-  //;virtual void
-  //;computeExpectedValues(const std::vector<DataTypeT> &InputVector1,
-  //;                      const std::vector<DataTypeT> &InputVector2);
-  //;void computeExpectedValues(const std::vector<DataTypeT> &InputVector1,
-  //;                           const DataTypeT &ScalarInput);
-
-  // TODO: All children override this and dispatch to appropriate private
-  // computeExpectedValues functions (like the ones defined above).
-  // TODO: Make this pure virtual? Making pure virtual leads to issues with
-  // instantiation of a pure abstract class.
   virtual void
-  computeExpectedValues([[maybe_unused]] const TestInputs<DataTypeT> &Inputs) {
-    LOG_ERROR_FMT_THROW(
-        L"E_NOT_IMPL: computeExpectedValues called on a TestConfig with no "
-        L"implementation for this OpType");
-  }
+  computeExpectedValues(const TestInputs<DataTypeT> &Inputs) = 0;
 
-  // TODO: Deltee?
-  void setInputValueSet1(const std::wstring &InputValueSetName) {
-    InputValueSetName1 = InputValueSetName;
-  }
-
-  /// TODO: :Delete me? Probably just add a 'SetInputValueSet' that takes an
-  /// index instead. And store the strings in an array of size 3.
-  void setInputValueSet2(const std::wstring &InputValueSetName) {
-    InputValueSetName2 = InputValueSetName;
+  void setInputValueSetKey(const std::wstring &InputValueSetName, size_t Index) {
+    // TODO: Log the index on error case
+    VERIFY_IS_TRUE(Index < (InputValueSetKeys.size() - 1),
+                          L"Index out of bounds for InputValueSetKeys");
+    InputValueSetKeys[Index] = InputValueSetName;
   }
 
   void setLengthToTest(size_t LengthToTest) {
     this->LengthToTest = LengthToTest;
   }
 
-  // Can probably delete this.
-  size_t getLengthToTest() const { return LengthToTest; }
-
-  // Can probable delete this.
-  std::vector<DataTypeT> getInputValueSet1() const {
-    return getInputValueSet(1);
-  }
-
-  // Can probably delete this.
-  std::vector<DataTypeT> getInputValueSet2() const {
-    return getInputValueSet(2);
-  }
-
-  // Can probably delete this.
-  std::vector<DataTypeT> getInputArgsArray() const;
-
-  float getTolerance() const { return Tolerance; }
-  ValidationType getValidationType() const { return ValidationType; }
-
   std::string getCompilerOptionsString() const;
 
   bool verifyOutput(const std::shared_ptr<st::ShaderOpTestResult> &TestResult);
 
+  size_t getNumOperands() const {
+    switch (BasicOpType) {
+    case BasicOpType_Unary:
+      return 1;
+    case BasicOpType_Binary:
+      return 2;
+    case BasicOpType_Ternary:
+      return 3;
+    default:
+      LOG_ERROR_FMT_THROW(
+          L"Programmer Error: getNumOperands called with unexpected "
+          L"BasicOpType: %d",
+          static_cast<int>(BasicOpType));
+      return 0;
+    }
+  }
+
 private:
   std::vector<DataTypeT> getInputValueSet(size_t ValueSetIndex) const;
+
+  // Helpers to get the hlsl type as a string for a given C++ type.
+  std::string getHLSLInputTypeString() const {
+    return getHLSLTypeString<DataTypeT>();
+  }
+  std::string getHLSLOutputTypeString() const;
 
   // Templated version to be used when the output data type does not match the
   // input data type.
@@ -602,10 +578,9 @@ private:
                     const std::vector<OutputDataTypeT> &ExpectedVector);
 
   // The input value sets are used to fill the shader buffer.
-  std::wstring InputValueSetName1 = L"DefaultInputValueSet1";
-  std::wstring InputValueSetName2 = L"DefaultInputValueSet2";
-  // No default args array
-  std::wstring InputArgsArrayName = L"";
+  std::array<std::wstring, 3> InputValueSetKeys = {
+      L"DefaultInputValueSet1", L"DefaultInputValueSet2",
+      L"DefaultInputValueSet3"};
 
 protected:
   // Prevent instances of TestConfig from being created directly. Want to force
@@ -614,24 +589,6 @@ protected:
   TestConfig(const OpTypeMetaData<OpTypeT> &OpTypeMd)
       : OpTypeName(OpTypeMd.OpTypeString), Intrinsic(OpTypeMd.Intrinsic),
         Operator(OpTypeMd.Operator), OpInputFlags(OpTypeMd.OpInputFlags) {}
-
-  //// The appropriate computeExpectedValue should be implemented in derived
-  //// classes. Impelemented as virtual here to prevent requiring all derived
-  //// classes from needing to implement. The OS builds disable RTTI, so using
-  //// dynamic casting to expose interfaces for these based on type isn't an
-  //// option. COM is the usual solution for this. But it's not worth it to add
-  //// all of the COM overhead to this class just for that.
-  // virtual DataTypeT
-  // computeExpectedValue([[maybe_unused]] const DataTypeT &A,
-  //                      [[maybe_unused]] const DataTypeT &B) const {
-  //   LOG_ERROR_FMT_THROW(L"E_NOT_IMPL: computeExpectedValue for a Binary Op");
-  //   return DataTypeT();
-  // }
-  // virtual DataTypeT
-  // computeExpectedValue([[maybe_unused]] const DataTypeT &A) const {
-  //   LOG_ERROR_FMT_THROW(L"E_NOT_IMPL: computeExpectedValue for a Unary Op");
-  //   return DataTypeT();
-  // }
 
   // To be used for the value of -DOPERATOR
   std::optional<std::string> Operator;
@@ -660,6 +617,7 @@ public:
 
   // Overridden from TestConfig.
   void computeExpectedValues(const TestInputs<DataTypeT> &Inputs) override {
+    // TODO: Put the error condition first?
     switch (BasicOpType) {
     case BasicOpType_Unary:
       computeExpectedValues(Inputs.InputVector1);
@@ -811,9 +769,7 @@ class TestConfigTrigonometric : public TestConfig<DataTypeT>,
                                 public TestConfigBasicUnary<DataTypeT> {
 public:
   TestConfigTrigonometric(const OpTypeMetaData<TrigonometricOpType> &OpTypeMd);
-  // DataTypeT computeExpectedValue(const DataTypeT &A) const override;
 
-  // Overridden from TestConfig.
   void computeExpectedValues(const TestInputs<DataTypeT> &Inputs) override {
     TestConfigBasicUnary<DataTypeT>::computeExpectedValues(Inputs.InputVector1,
                                                            ExpectedVector);
@@ -834,7 +790,6 @@ class TestConfigUnary : public TestConfig<DataTypeT>,
 public:
   TestConfigUnary(const OpTypeMetaData<UnaryOpType> &OpTypeMd);
 
-  // Overridden from TestConfig.
   void computeExpectedValues(const TestInputs<DataTypeT> &Inputs) override {
     TestConfigBasicUnary<DataTypeT>::computeExpectedValues(Inputs.InputVector1,
                                                            ExpectedVector);
@@ -852,7 +807,6 @@ class TestConfigUnaryMath : public TestConfig<DataTypeT>,
 public:
   TestConfigUnaryMath(const OpTypeMetaData<UnaryMathOpType> &OpTypeMd);
 
-  // Overridden from TestConfig.
   void computeExpectedValues(const TestInputs<DataTypeT> &Inputs) override {
     computeExpectedValues(Inputs.InputVector1);
   }
@@ -862,7 +816,6 @@ public:
 private:
   UnaryMathOpType OpType = UnaryMathOpType_EnumValueCount;
 
-  // Private implementation so we can handle the sign intrinsic.
   void computeExpectedValues(const std::vector<DataTypeT> &InputVector1);
 
   template <typename DataTypeT> int32_t sign(const DataTypeT &A) const {
@@ -888,6 +841,11 @@ public:
   DataTypeT computeExpectedValue(const DataTypeT &A,
                                  const DataTypeT &B) const override;
 
+  // Overridden from TestConfig.
+  void computeExpectedValues(const TestInputs<DataTypeT> &Inputs) override {
+    TestConfigBasicBinary<DataTypeT>::computeExpectedValues(Inputs, ExpectedVector);
+  }
+
 private:
   BinaryMathOpType OpType = BinaryMathOpType_EnumValueCount;
 
@@ -911,8 +869,13 @@ template <typename DataTypeT>
 class TestConfigTernaryMath : public TestConfig<DataTypeT> {
 public:
   TestConfigTernaryMath(const OpTypeMetaData<TernaryMathOpType> &OpTypeMd);
-  // DataTypeT computeExpectedValue(const DataTypeT &A, const DataTypeT &B,
-  //                                const DataTypeT &C) const override;
+
+  // Overridden from TestConfig.
+  void computeExpectedValues(const TestInputs<DataTypeT> &Inputs) override
+  {
+    // TODO: Implement
+  }
+
 private:
   TernaryMathOpType OpType = TernaryMathOpType_EnumValueCount;
 

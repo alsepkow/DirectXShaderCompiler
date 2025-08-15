@@ -3754,7 +3754,7 @@ void MSMain(uint GID : SV_GroupIndex,
     <RootSignature>RootFlags(0), UAV(u0), UAV(u1), UAV(u2),
     UAV(u3), UAV(u4)</RootSignature>
     <!-- Width="16" BYTES to account for 2 of the largest scalar types (64 bits)-->
-    <Resource Name="InputFuncArgs" Dimension="BUFFER" Width="24"
+    <Resource Name="InputScalarArgs" Dimension="BUFFER" Width="24"
     Flags="ALLOW_UNORDERED_ACCESS" InitialResourceState="COPY_DEST"
     TransitionTo="UNORDERED_ACCESS" Init="ByName" ReadBack="true" />
     <!-- Width="8192" BYTES to account for largest type (64 bits) and vector
@@ -3764,7 +3764,7 @@ void MSMain(uint GID : SV_GroupIndex,
     <Resource Name="InputVector3" Dimension="BUFFER" Width="8192" Flags="ALLOW_UNORDERED_ACCESS" InitialResourceState="COPY_DEST" TransitionTo="UNORDERED_ACCESS" Init="ByName" ReadBack="true" />
     <Resource Name="OutputVector" Dimension="BUFFER" Width="8192" Flags="ALLOW_UNORDERED_ACCESS" InitialResourceState="COPY_DEST" TransitionTo="UNORDERED_ACCESS" Init="ByName" ReadBack="true" />
     <RootValues>
-      <RootValue Index="0" ResName="InputFuncArgs" />
+      <RootValue Index="0" ResName="InputScalarArgs" />
       <RootValue Index="1" ResName="InputVector1" />
       <RootValue Index="2" ResName="InputVector2" />
       <RootValue Index="3" ResName="InputVector3" />
@@ -3844,7 +3844,7 @@ void MSMain(uint GID : SV_GroupIndex,
 
           #if (IS_BINARY_OP || IS_TERNARY_OP)
               #if SECOND_OPERAND_IS_SCALAR
-              TYPE Input2 = g_InputFuncArgs.Load<TYPE>(ScalarLoadOffset++);
+              TYPE Input2 = g_InputScalarArgs.Load<TYPE>(ScalarLoadOffset++);
               #else
               vector<TYPE, NUM> Input2 = g_InputVector2.Load< vector<TYPE,
               NUM> >(0);
@@ -3853,7 +3853,7 @@ void MSMain(uint GID : SV_GroupIndex,
 
           #if IS_TERNARY_OP
             #if THIRD_OPERAND_IS_SCALAR
-              TYPE Input3 = g_InputFuncArgs.Load<TYPE>(ScalarLoadOffset++);
+              TYPE Input3 = g_InputScalarArgs.Load<TYPE>(ScalarLoadOffset++);
               #else
               vector<TYPE, NUM> Input3 = g_InputVector2.Load< vector<TYPE,
               NUM> >(1);
