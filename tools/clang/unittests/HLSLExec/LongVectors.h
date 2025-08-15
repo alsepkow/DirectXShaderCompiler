@@ -467,7 +467,7 @@ public:
       computeExpectedValues(Inputs.InputVector1, Inputs.InputVector2.value(),
                             ExpectedVector);
     else
-      computeExpectedValues(Inputs.InputVector1, Inputs.ScalarInput.value(),
+      computeExpectedValues(Inputs.InputVector1, Inputs.ScalarInput.value()[0],
                             ExpectedVector);
   }
 
@@ -491,6 +491,46 @@ public:
 
   virtual DataTypeT computeExpectedValue(const DataTypeT &A,
                                          const DataTypeT &B) const = 0;
+};
+
+template <typename DataTypeT> class TestConfigBasicTernary {
+public:
+  TestConfigBasicTernary() {};
+  virtual ~TestConfigBasicTernary() = default;
+
+  virtual void computeExpectedValues(const TestInputs<DataTypeT> &Inputs,
+                                     VariantVector &ExpectedVector) {
+
+    size_t ScalarIndex = 0;
+    const auto &Input1 = Inputs.InputVector1;
+
+    // These need to be owned so we can reference them safely
+    std::vector<DataTypeT> ScalarInput2;
+    std::vector<DataTypeT> ScalarInput3;
+
+    const std::vector<DataTypeT> &Input2 =
+        Inputs.InputVector2.has_value()
+            ? Inputs.InputVector2.value()
+            : (ScalarInput2 = {Inputs.ScalarInput.value()[ScalarIndex++]},
+               ScalarInput2);
+
+    const std::vector<DataTypeT> &Input3 =
+        Inputs.InputVector3.has_value()
+            ? Inputs.InputVector3.value()
+            : (ScalarInput3 = {Inputs.ScalarInput.value()[ScalarIndex++]},
+               ScalarInput3);
+
+    fillExpectedVector<DataTypeT>(
+        ExpectedVector, Input1.size(), [&](size_t Index) {
+          const DataTypeT &B = (Input2.size() == 1 ? Input2[0] : Input2[Index]);
+          const DataTypeT &C = (Input3.size() == 1 ? Input3[0] : Input3[Index]);
+
+          return computeExpectedValue(Input1[Index], B, C);
+        });
+  }
+
+  virtual DataTypeT computeExpectedValue(const DataTypeT &A, const DataTypeT &B,
+                                         const DataTypeT &C) const = 0;
 };
 
 // Helps handle the test configuration for LongVector operations.
@@ -810,7 +850,8 @@ private:
 };
 
 template <typename DataTypeT>
-class TestConfigTernaryMath : public TestConfig<DataTypeT> {
+class TestConfigTernaryMath : public TestConfig<DataTypeT>,
+                              public TestConfigBasicTernary<DataTypeT> {
 public:
   TestConfigTernaryMath(const OpTypeMetaData<TernaryMathOpType> &OpTypeMd);
 
@@ -818,10 +859,46 @@ public:
     // TODO: Implement
   }
 
+  DataTypeT computeExpectedValue(const DataTypeT &A, const DataTypeT &B,
+                                 const DataTypeT &C) const override {
+    switch (OpType) {
+    case TernaryMathOpType_Fma:
+      return fma(A, B, C);
+    case TernaryMathOpType_Mad:
+      return mad(A, B, C);
+    case TernaryMathOpType_SmoothStep:
+      return smoothStep(A, B, C);
+    default:
+      LOG_ERROR_FMT_THROW(L"Programmer Error: Invalid TernaryMathOpType: %d",
+                          OpType);
+      return DataTypeT();
+    }
+  }
+
 private:
   TernaryMathOpType OpType = TernaryMathOpType_EnumValueCount;
 
+  // TODO: Would it be better to gaurd callers with a constexpr.
+  // Or have this overload. Other code paths make use of the overloads. Both are
+  // meh. Could also use type traits maybe?
+  // Note: This is actually better I think because it gives the compiler
+  // something to resolve to for the non double case. All the ternary math ops
+  // return the same output type as the input type.
+  template <typename DataTypeT>
+  DataTypeT fma([[maybe_unused]] const DataTypeT &A,
+                [[maybe_unused]] const DataTypeT &B,
+                [[maybe_unused]] const DataTypeT &C) const {
+    // This path is unexpected outside of an issue when brining up new tests. So
+    // throwing an exception is appropriate.
+    LOG_ERROR_FMT_THROW(L"Programmer Error: fma only supports doubles. "
+                        L"Have DataTypeT: %s",
+                        typeid(DataTypeT).name());
+    return DataTypeT();
+  }
+
   // fma only supports doubles.
+  // TODO: Will this actually get called or does the templated version end up
+  // getting called instead?
   double fma(const double &A, const double &B, const double &C) const {
     return A * B + C;
   }
@@ -886,7 +963,6 @@ std::unique_ptr<TestConfig<DataTypeT>>
 makeTestConfig(const OpTypeMetaData<TernaryMathOpType> &OpTypeMetaData) {
   return std::make_unique<TestConfigTernaryMath<DataTypeT>>(OpTypeMetaData);
 }
-
 }; // namespace LongVector
 
 #endif // LONGVECTORS_H

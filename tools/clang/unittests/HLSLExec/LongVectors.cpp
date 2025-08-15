@@ -244,6 +244,9 @@ static TableParameter ternaryOpParameters[] = {
     {L"InputValueSetName1", TableParameter::STRING, false},
     {L"InputValueSetName2", TableParameter::STRING, false},
     {L"InputValueSetName3", TableParameter::STRING, false},
+    // TODO: Would it make more sense to just pass the flags as a single hex
+    // value instead? There is a IsHexString helper already in
+    // TableParameterHandler.h
     // InputXIsScalar are optional, defaults logically to false.
     {L"Input2IsScalar", TableParameter::BOOL, false},
     {L"Input3IsScalar", TableParameter::BOOL, false},
@@ -368,7 +371,8 @@ TEST_F(OpTest, binaryMathOpTest) {
 
   std::wstring DataType(Handler.GetTableParamByName(L"DataType")->m_str);
   std::wstring OpTypeString(Handler.GetTableParamByName(L"OpTypeEnum")->m_str);
-  const bool Input2IsScalar(Handler.GetTableParamByName(L"Input2IsScalar")->m_bool);
+  const bool Input2IsScalar(
+      Handler.GetTableParamByName(L"Input2IsScalar")->m_bool);
 
   auto OpTypeMD = getBinaryMathOpType(OpTypeString);
   if (Input2IsScalar)
@@ -922,23 +926,24 @@ TestConfigAsType<DataTypeT>::TestConfigAsType(
 }
 
 template <typename DataTypeT>
-void TestConfigAsType<DataTypeT>::computeExpectedValues(const TestInputs<DataTypeT> &Inputs) {
+void TestConfigAsType<DataTypeT>::computeExpectedValues(
+    const TestInputs<DataTypeT> &Inputs) {
 
-    if(BasicOpType != BasicOpType_Unary && BasicOpType != BasicOpType_Binary) {
-      LOG_ERROR_FMT_THROW(
-          L"Programmer Error: computeExpectedValue called with "
-          L"unexpected BasicOpType: %d",
-          static_cast<int>(BasicOpType));
-    }
+  if (BasicOpType != BasicOpType_Unary && BasicOpType != BasicOpType_Binary) {
+    LOG_ERROR_FMT_THROW(L"Programmer Error: computeExpectedValue called with "
+                        L"unexpected BasicOpType: %d",
+                        static_cast<int>(BasicOpType));
+  }
 
-    switch (BasicOpType) {
-    case BasicOpType_Unary:
-      computeExpectedValues(Inputs.InputVector1);
-      return;
-    case BasicOpType_Binary:
-      computeExpectedValues(Inputs.InputVector1, Inputs.InputVector2.value());
-      return;
-    }
+  switch (BasicOpType) {
+  case BasicOpType_Unary:
+    computeExpectedValues(Inputs.InputVector1);
+    return;
+  case BasicOpType_Binary:
+    // TODO: Should we add support for using scalar inputs for the second?
+    computeExpectedValues(Inputs.InputVector1, Inputs.InputVector2.value());
+    return;
+  }
 }
 
 template <typename DataTypeT>

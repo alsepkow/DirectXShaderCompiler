@@ -204,6 +204,8 @@ template <> struct TestData<HLSLBool_t> {
        {false, true, false, false, false, false, true, true, true, true}},
       {L"DefaultInputValueSet2",
        {true, false, false, false, false, true, true, true, false, false}},
+      {L"DefaultInputValueSet3",
+       {true, false, false, false, false, true, true, true, false, false}},
   };
 };
 
@@ -211,6 +213,7 @@ template <> struct TestData<int16_t> {
   inline static const std::map<std::wstring, std::vector<int16_t>> Data = {
       {L"DefaultInputValueSet1", {-6, 1, 7, 3, 8, 4, -3, 8, 8, -2}},
       {L"DefaultInputValueSet2", {5, -6, -3, -2, 9, 3, 1, -3, -7, 2}},
+      {L"DefaultInputValueSet3", {5, -6, -3, -2, 9, 3, 1, -3, -7, 2}},
   };
 };
 
@@ -218,6 +221,7 @@ template <> struct TestData<int32_t> {
   inline static const std::map<std::wstring, std::vector<int32_t>> Data = {
       {L"DefaultInputValueSet1", {-6, 1, 7, 3, 8, 4, -3, 8, 8, -2}},
       {L"DefaultInputValueSet2", {5, -6, -3, -2, 9, 3, 1, -3, -7, 2}},
+      {L"DefaultInputValueSet3", {5, -6, -3, -2, 9, 3, 1, -3, -7, 2}},
   };
 };
 
@@ -225,6 +229,7 @@ template <> struct TestData<int64_t> {
   inline static const std::map<std::wstring, std::vector<int64_t>> Data = {
       {L"DefaultInputValueSet1", {-6, 11, 7, 3, 8, 4, -3, 8, 8, -2}},
       {L"DefaultInputValueSet2", {5, -1337, -3, -2, 9, 3, 1, -3, 501, 2}},
+      {L"DefaultInputValueSet3", {5, -1337, -3, -2, 9, 3, 1, -3, 501, 2}},
   };
 };
 
@@ -232,6 +237,7 @@ template <> struct TestData<uint16_t> {
   inline static const std::map<std::wstring, std::vector<uint16_t>> Data = {
       {L"DefaultInputValueSet1", {1, 699, 3, 1023, 5, 6, 0, 8, 9, 10}},
       {L"DefaultInputValueSet2", {2, 111, 3, 4, 5, 9, 21, 8, 9, 10}},
+      {L"DefaultInputValueSet3", {2, 111, 3, 4, 5, 9, 21, 8, 9, 10}},
   };
 };
 
@@ -239,6 +245,7 @@ template <> struct TestData<uint32_t> {
   inline static const std::map<std::wstring, std::vector<uint32_t>> Data = {
       {L"DefaultInputValueSet1", {1, 2, 3, 4, 5, 0, 7, 8, 9, 10}},
       {L"DefaultInputValueSet2", {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}},
+      {L"DefaultInputValueSet3", {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}},
   };
 };
 
@@ -246,6 +253,7 @@ template <> struct TestData<uint64_t> {
   inline static const std::map<std::wstring, std::vector<uint64_t>> Data = {
       {L"DefaultInputValueSet1", {1, 2, 3, 4, 5, 0, 7, 1000, 9, 10}},
       {L"DefaultInputValueSet2", {1, 2, 1337, 4, 5, 6, 7, 8, 9, 10}},
+      {L"DefaultInputValueSet3", {1, 2, 1337, 4, 5, 6, 7, 8, 9, 10}},
   };
 };
 
@@ -255,8 +263,8 @@ template <> struct TestData<HLSLHalf_t> {
        {-1.0, -1.0, 1.0, -0.01, 1.0, -0.01, 1.0, -0.01, 1.0, -0.01}},
       {L"DefaultInputValueSet2",
        {1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 1.0, -1.0}},
-      {L"DefaultClampArgs", {-1.0, 1.0}}, // Min, Max values for clamp
-      // Range [ -pi/2, pi/2]
+      {L"DefaultInputValueSet3",
+       {1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 1.0, -1.0}},
       {L"TrigonometricInputValueSet_RangeHalfPi",
        {-1.073, 0.044, -1.047, 0.313, 1.447, -0.865, 1.364, -0.715, -0.800,
         0.541}},
@@ -271,6 +279,8 @@ template <> struct TestData<float> {
       {L"DefaultInputValueSet1",
        {1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 1.0, -1.0}},
       {L"DefaultInputValueSet2",
+       {1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 1.0, -1.0}},
+      {L"DefaultInputValueSet3",
        {1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 1.0, -1.0}},
       // Range [ -pi/2, pi/2]
       {L"TrigonometricInputValueSet_RangeHalfPi",
@@ -287,6 +297,8 @@ template <> struct TestData<double> {
       {L"DefaultInputValueSet1",
        {1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 1.0, -1.0}},
       {L"DefaultInputValueSet2",
+       {1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 1.0, -1.0}},
+      {L"DefaultInputValueSet3",
        {1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 1.0, -1.0}},
       // Range [ -pi/2, pi/2]
       {L"TrigonometricInputValueSet_RangeHalfPi",

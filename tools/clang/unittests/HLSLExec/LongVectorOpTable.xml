@@ -1,5 +1,26 @@
 <?xml version="1.0" ?>
 <Data>
+    <Table Id="TernaryMathOpTable">
+        <ParameterTypes>
+          <!-- InputValueSetName1 is optional. If no value is provided use the
+          default value set for the data type. This string is meant to be a
+          key value for the the array of std::pairs defined in
+          LongVectorTestData.h for the applicable DataType-->
+          <ParameterType Name="InputValueSetName1">String</ParameterType>
+          <!-- InputValueSetName2 is optional. Same as InputValueSetName1 -->
+          <ParameterType Name="InputValueSetName2">String</ParameterType>
+          <ParameterType Name="DataType">String</ParameterType>
+          <ParameterType Name="OpTypeEnum">String</ParameterType>
+          <!-- If Input2IsScalar isn't set then the test assumes the input is a vector -->
+          <ParameterType Name="Input2IsScalar">bool</ParameterType>
+          <ParameterType Name="Input3IsScalar">bool</ParameterType>
+        </ParameterTypes>
+        <!-- LongVectorTernayMathOpTypeTable DataType: bool -->
+        <Row Name="fma_double">
+          <Parameter Name="OpTypeEnum">TernaryMathOpType_Fma</Parameter>
+          <Parameter Name="DataType">float64</Parameter>
+        </Row>
+    </Table>
     <Table Id="BinaryMathOpTable">
         <ParameterTypes>
           <!-- InputValueSetName1 is optional. If no value is provided use the
