@@ -919,8 +919,21 @@ private:
   // TODO: should take floats only?
   DataTypeT smoothStep(const DataTypeT &Min, const DataTypeT &Max,
                        const DataTypeT &X) const {
-    // smoothstep returns a smooth Hermite interpolation between 0 and 1,
-    // if X is in the range [Min, Max].
+
+    // Undefined behavior if Min >= Max. Prevent it
+    // from happening in these tests cases.
+    DXASSERT_NOMSG(Min < Max);
+
+    if (X <= Min)
+      return DataTypeT(0);
+
+    if (X >= Max)
+      return DataTypeT(1);
+
+
+    // TODO: need to add datasets that are valid!
+    // X is in the range [Min, Max], so we can apply
+    // smooth Hermite cubic interpolation. 
     //
     // 1. Normalize X to [0, 1] between Min and Max.
     DataTypeT NormalizedX = (X - Min) / (Max - Min);

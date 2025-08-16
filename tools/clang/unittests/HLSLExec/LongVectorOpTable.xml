@@ -15,9 +15,17 @@
           <ParameterType Name="Input2IsScalar">bool</ParameterType>
           <ParameterType Name="Input3IsScalar">bool</ParameterType>
         </ParameterTypes>
-        <!-- LongVectorTernayMathOpTypeTable DataType: bool -->
-        <Row Name="fma_double">
+        <!-- LongVectorTernaryMathOpTypeTable DataType: float64 -->
+        <Row Name="fma_float64">
           <Parameter Name="OpTypeEnum">TernaryMathOpType_Fma</Parameter>
+          <Parameter Name="DataType">float64</Parameter>
+        </Row>
+        <Row Name="Mad_float64">
+          <Parameter Name="OpTypeEnum">TernaryMathOpType_Mad</Parameter>
+          <Parameter Name="DataType">float64</Parameter>
+        </Row>
+        <Row Name="SmoothStep_float64">
+          <Parameter Name="OpTypeEnum">TernaryMathOpType_SmoothStep</Parameter>
           <Parameter Name="DataType">float64</Parameter>
         </Row>
     </Table>
