@@ -235,6 +235,7 @@ enum UnaryMathOpType {
   UnaryMathOpType_Log2,
   UnaryMathOpType_Log10,
   UnaryMathOpType_Rcp,
+  UnaryMathOpType_Frexp,
   UnaryMathOpType_EnumValueCount
 };
 
@@ -255,6 +256,7 @@ static const OpTypeMetaData<UnaryMathOpType>
         {L"UnaryMathOpType_Log2", UnaryMathOpType_Log2, "log2"},
         {L"UnaryMathOpType_Log10", UnaryMathOpType_Log10, "log10"},
         {L"UnaryMathOpType_Rcp", UnaryMathOpType_Rcp, "rcp"},
+        {L"UnaryMathOpType_Frexp", UnaryMathOpType_Frexp, "TestFrexp"},
 };
 
 static_assert(_countof(unaryMathOpTypeStringToOpMetaData) ==
@@ -276,6 +278,7 @@ enum BinaryMathOpType {
   BinaryMathOpType_Modulus,
   BinaryMathOpType_Min,
   BinaryMathOpType_Max,
+  BinaryMathOpType_Ldexp,
   BinaryMathOpType_EnumValueCount
 };
 
@@ -292,6 +295,7 @@ static const OpTypeMetaData<BinaryMathOpType>
          "%"},
         {L"BinaryMathOpType_Min", BinaryMathOpType_Min, "min", ","},
         {L"BinaryMathOpType_Max", BinaryMathOpType_Max, "max", ","},
+        {L"BinaryMathOpType_Ldexp", BinaryMathOpType_Ldexp, "ldexp", ","},
 };
 
 static_assert(_countof(binaryMathOpTypeStringToOpMetaData) ==
@@ -437,7 +441,7 @@ template <typename DataTypeT> struct TestInputs {
 
 template <typename DataTypeT> class TestConfigBasicUnary {
 public:
-  TestConfigBasicUnary(){};
+  TestConfigBasicUnary() {};
   virtual ~TestConfigBasicUnary() = default;
 
   virtual void computeExpectedValues(const TestInputs<DataTypeT> &Inputs,
@@ -458,7 +462,7 @@ public:
 
 template <typename DataTypeT> class TestConfigBasicBinary {
 public:
-  TestConfigBasicBinary(){};
+  TestConfigBasicBinary() {};
   virtual ~TestConfigBasicBinary() = default;
 
   virtual void computeExpectedValues(const TestInputs<DataTypeT> &Inputs,
@@ -497,7 +501,7 @@ public:
 
 template <typename DataTypeT> class TestConfigBasicTernary {
 public:
-  TestConfigBasicTernary(){};
+  TestConfigBasicTernary() {};
   virtual ~TestConfigBasicTernary() = default;
 
   virtual void computeExpectedValues(const TestInputs<DataTypeT> &Inputs,
@@ -813,6 +817,31 @@ private:
     else
       return (std::abs)(A);
   }
+
+  template <typename T = DataTypeT>
+  typename std::enable_if<!(std::is_same<T, float>::value), float>::type
+  frexp([[maybe_unused]] const T &A, [[maybe_unused]] float *Exponent) const {
+    LOG_ERROR_FMT_THROW(L"Programmer Error: frexp only accepts floats. "
+                        L"Have DataTypeT: %s",
+                        typeid(T).name());
+    return 0.0f;
+  }
+
+  template <typename T = DataTypeT>
+  typename std::enable_if<(std::is_same<T, float>::value), T>::type
+  frexp(const T &A, T *Exponent) const {
+    int IntExp = 0;
+
+    // std::frexp returns a signed mantissa. But the HLSL implmentation returns
+    // an unsigned mantissa.
+    T mantissa = std::abs(std::frexp(A, &IntExp));
+
+    // std::frexp returns the exponent as an int, but HLSL stores it as a float.
+    // However, the HLSL exponents fractional component is always 0. So it can
+    // conversion between float and int is safe.
+    *Exponent = static_cast<T>(IntExp);
+    return mantissa;
+  }
 };
 
 template <typename DataTypeT>
@@ -833,8 +862,7 @@ private:
 
   // Helpers so we do the right thing for float types. HLSLHalf_t is handled in
   // an operator overload.
-  template <typename DataTypeT>
-  DataTypeT mod(const DataTypeT &A, const DataTypeT &B) const {
+  template <typename T = DataTypeT> T mod(const T &A, const T &B) const {
     return A % B;
   }
 
@@ -844,6 +872,25 @@ private:
 
   template <> double mod(const double &A, const double &B) const {
     return std::fmod(A, B);
+  }
+
+  template <typename T = DataTypeT>
+  typename std::enable_if<!(std::is_same<T, float>::value ||
+                            std::is_same<T, HLSLHalf_t>::value),
+                          T>::type
+  ldexp(const T &A, const T &Exponent) const {
+    LOG_ERROR_FMT_THROW(L"Programmer Error: ldexp only accepts floatlikes. "
+                        L"Have DataTypeT: %s",
+                        typeid(T).name());
+    return T();
+  }
+
+  template <typename T = DataTypeT>
+  typename std::enable_if<(std::is_same<T, float>::value ||
+                           std::is_same<T, HLSLHalf_t>::value),
+                          T>::type
+  ldexp(const T &A, const T &Exponent) const {
+    return A * T(std::pow(2.0f, Exponent));
   }
 };
 

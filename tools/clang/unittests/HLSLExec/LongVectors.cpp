@@ -1125,8 +1125,14 @@ TestConfigUnaryMath<DataTypeT>::TestConfigUnaryMath(
     ValidationType = ValidationType_Ulp;
   }
 
-  if (OpType == UnaryMathOpType_Sign)
+  switch (OpType) {
+  case UnaryMathOpType_Sign:
     ExpectedVector = std::vector<int32_t>{};
+    return;
+  case UnaryMathOpType_Frexp:
+    SpecialDefines = " -DFUNC_FREXP=1";
+    break;
+  }
 }
 
 template <typename DataTypeT>
@@ -1188,6 +1194,23 @@ void TestConfigUnaryMath<DataTypeT>::computeExpectedValues(
     return;
   }
 
+  // Frexp has a return value as well as an output paramater. So we handle it
+  // with special logic.
+  if (OpType == UnaryMathOpType_Frexp) {
+    auto *TypedExpectedValues =
+        std::get_if<std::vector<float>>(&ExpectedVector);
+    VERIFY_IS_NOT_NULL(TypedExpectedValues,
+                       L"Expected vector is not of the correct type.");
+    TypedExpectedValues->resize(InputVector1.size() * 2);
+    float Exp = 0;
+    for (size_t Index = 0; Index < InputVector1.size(); ++Index) {
+      float Man = frexp(InputVector1[Index], &Exp);
+      (*TypedExpectedValues)[Index] = Man;
+      (*TypedExpectedValues)[Index + InputVector1.size()] = Exp;
+    }
+    return;
+  }
+
   TestConfigBasicUnary<DataTypeT>::computeExpectedValues(InputVector1,
                                                          ExpectedVector);
 }
@@ -1225,6 +1248,8 @@ DataTypeT TestConfigBinaryMath<DataTypeT>::computeExpectedValue(
     return (std::min)(A, B);
   case BinaryMathOpType_Max:
     return (std::max)(A, B);
+  case BinaryMathOpType_Ldexp:
+    return ldexp(A, B);
   default:
     LOG_ERROR_FMT_THROW(L"Unknown BinaryMathOpType: %ls", OpTypeName.c_str());
     return DataTypeT();
