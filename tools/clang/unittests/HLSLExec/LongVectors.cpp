@@ -389,6 +389,30 @@ TEST_F(OpTest, binaryMathOpTest) {
   dispatchTestByDataType(OpTypeMD, DataType, Handler);
 }
 
+TEST_F(OpTest, bitwiseOpTest) {
+  WEX::TestExecution::SetVerifyOutput verifySettings(
+      WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
+
+  using namespace WEX::Common;
+
+  const size_t TableSize = sizeof(BinaryOpParameters) / sizeof(TableParameter);
+  TableParameterHandler Handler(BinaryOpParameters, TableSize);
+
+  std::wstring DataType(Handler.GetTableParamByName(L"DataType")->m_str);
+  std::wstring OpTypeString(Handler.GetTableParamByName(L"OpTypeEnum")->m_str);
+
+  auto OpTypeMD = getBitwiseOpType(OpTypeString);
+
+  std::wstring ScalarInputFlags(
+      Handler.GetTableParamByName(L"ScalarInputFlags")->m_str);
+  if (!ScalarInputFlags.empty())
+    VERIFY_IS_TRUE(
+        IsHexString(ScalarInputFlags.c_str(), &OpTypeMD.ScalarInputFlags),
+        L"ScalarInputFlags must be a hex string if provided.");
+
+  dispatchBitwiseOpTestByDataType(OpTypeMD, DataType, Handler);
+}
+
 TEST_F(OpTest, ternaryMathOpTest) {
   WEX::TestExecution::SetVerifyOutput verifySettings(
       WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
@@ -489,6 +513,37 @@ void OpTest::dispatchUnaryMathOpTestByDataType(
     return;
   case Hash_djb2a(L"float64"):
     dispatchTestByVectorLength<double>(OpTypeMd, Handler);
+    return;
+  default:
+    LOG_ERROR_FMT_THROW(L"Invalid UnaryMathOpType DataType: %ls.",
+                        DataType.c_str());
+  }
+}
+
+// Specialized dispatch for BitwiseOp tests. The Bitwise ops
+// only support int and uint inputs/
+void OpTest::dispatchBitwiseOpTestByDataType(
+    const OpTypeMetaData<BitwiseOpType> &OpTypeMd, std::wstring DataType,
+    TableParameterHandler &Handler) {
+
+  switch (Hash_djb2a(DataType)) {
+  case Hash_djb2a(L"int16"):
+    dispatchTestByVectorLength<int16_t>(OpTypeMd, Handler);
+    return;
+  case Hash_djb2a(L"int32"):
+    dispatchTestByVectorLength<int32_t>(OpTypeMd, Handler);
+    return;
+  case Hash_djb2a(L"int64"):
+    dispatchTestByVectorLength<int64_t>(OpTypeMd, Handler);
+    return;
+  case Hash_djb2a(L"uint16"):
+    dispatchTestByVectorLength<uint16_t>(OpTypeMd, Handler);
+    return;
+  case Hash_djb2a(L"uint32"):
+    dispatchTestByVectorLength<uint32_t>(OpTypeMd, Handler);
+    return;
+  case Hash_djb2a(L"uint64"):
+    dispatchTestByVectorLength<uint64_t>(OpTypeMd, Handler);
     return;
   default:
     LOG_ERROR_FMT_THROW(L"Invalid UnaryMathOpType DataType: %ls.",
@@ -1179,6 +1234,15 @@ BinaryMathOpTestConfig<T>::BinaryMathOpTestConfig(
 
   BasicOpType = BasicOpType_Binary;
 
+  switch (OpType) {
+  case BinaryMathOpType_CompoundMultiply:
+  case BinaryMathOpType_CompoundAdd:
+  case BinaryMathOpType_CompoundSubtract:
+  case BinaryMathOpType_CompoundDivide:
+  case BinaryMathOpType_CompoundModulus:
+    SpecialDefines = " -DIS_COMPOUND_ASSIGNMENT_OP=1";
+  }
+
   auto ComputeFunc = [this](const T &A, const T &B) {
     return this->computeExpectedValue(A, B);
   };
@@ -1191,14 +1255,19 @@ T BinaryMathOpTestConfig<T>::computeExpectedValue(const T &A,
 
   switch (OpType) {
   case BinaryMathOpType_Multiply:
+  case BinaryMathOpType_CompoundMultiply:
     return A * B;
   case BinaryMathOpType_Add:
+  case BinaryMathOpType_CompoundAdd:
     return A + B;
   case BinaryMathOpType_Subtract:
+  case BinaryMathOpType_CompoundSubtract:
     return A - B;
   case BinaryMathOpType_Divide:
+  case BinaryMathOpType_CompoundDivide:
     return A / B;
   case BinaryMathOpType_Modulus:
+  case BinaryMathOpType_CompoundModulus:
     return mod(A, B);
   case BinaryMathOpType_Min:
     // std::max and std::min are wrapped in () to avoid collisions with the //
@@ -1208,6 +1277,73 @@ T BinaryMathOpTestConfig<T>::computeExpectedValue(const T &A,
     return (std::max)(A, B);
   default:
     LOG_ERROR_FMT_THROW(L"Unknown BinaryMathOpType: %ls", OpTypeName.c_str());
+    return T();
+  }
+}
+
+template <typename T>
+BitwiseOpTestConfig<T>::BitwiseOpTestConfig(
+    const OpTypeMetaData<BitwiseOpType> &OpTypeMd)
+    : TestConfig<T>(OpTypeMd), OpType(OpTypeMd.OpType) {
+
+  if (OpType == BitwiseOpType_Not) {
+    SpecialDefines = " -DFUNC_UNARY_OPERATOR=1";
+    BasicOpType = BasicOpType_Unary;
+    auto ComputeFunc = [this](const T &A) {
+      return this->computeExpectedValue_Not(A);
+    };
+    InitUnaryOpValueComputer<T>(ComputeFunc);
+  } else {
+    BasicOpType = BasicOpType_Binary;
+    auto ComputeFunc = [this](const T &A, const T &B) {
+      return this->computeExpectedValue(A, B);
+    };
+    InitBinaryOpValueComputer<T>(ComputeFunc);
+  }
+
+  switch (OpType) {
+  case BitwiseOpType_CompoundAnd:
+  case BitwiseOpType_CompoundOr:
+  case BitwiseOpType_CompoundXor:
+  case BitwiseOpType_CompoundShiftLeft:
+  case BitwiseOpType_CompoundShiftRight:
+    SpecialDefines = " -DIS_COMPOUND_ASSIGNMENT_OP=1";
+  }
+}
+
+template <typename T>
+T BitwiseOpTestConfig<T>::computeExpectedValue_Not(const T &A) const {
+
+  DXASSERT_NOMSG(BasicOpType == BasicOpType_Unary);
+  DXASSERT_NOMSG(OpType == BitwiseOpType_Not);
+
+  return ~A;
+}
+
+template <typename T>
+T BitwiseOpTestConfig<T>::computeExpectedValue(const T &A, const T &B) const {
+
+  DXASSERT_NOMSG(BasicOpType == BasicOpType_Binary);
+
+  switch (OpType) {
+  case BitwiseOpType_And:
+  case BitwiseOpType_CompoundAnd:
+    return A & B;
+  case BitwiseOpType_Or:
+  case BitwiseOpType_CompoundOr:
+    return A | B;
+  case BitwiseOpType_Xor:
+  case BitwiseOpType_CompoundXor:
+    return A ^ B;
+  case BitwiseOpType_ShiftLeft:
+  case BitwiseOpType_CompoundShiftLeft:
+    return A << B;
+  case BitwiseOpType_ShiftRight:
+  case BitwiseOpType_CompoundShiftRight:
+    return A >> B;
+  default:
+    LOG_ERROR_FMT_THROW(L"Unknown Binary BitwiseOpType: %ls",
+                        OpTypeName.c_str());
     return T();
   }
 }
