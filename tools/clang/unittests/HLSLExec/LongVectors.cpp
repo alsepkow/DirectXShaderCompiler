@@ -1170,14 +1170,12 @@ public:
       WEX::TestExecution::RuntimeParameters::TryGetValue(L"VerboseLogging",
                                                          VerboseLogging);
       if (VerboseLogging)
-        hlsl_test::LogCommentFmt(
-            L"Verbose logging is enabled for this test.");
+        hlsl_test::LogCommentFmt(L"Verbose logging is enabled for this test.");
       else
-        hlsl_test::LogCommentFmt(
-            L"Verbose logging is disabled for this test.");
+        hlsl_test::LogCommentFmt(L"Verbose logging is disabled for this test.");
 
-      WEX::TestExecution::RuntimeParameters::TryGetValue(
-          L"InputSize", OverrideInputSize);
+      WEX::TestExecution::RuntimeParameters::TryGetValue(L"InputSize",
+                                                         OverrideInputSize);
 
       bool IsRITP = false;
       WEX::TestExecution::RuntimeParameters::TryGetValue(L"RITP", IsRITP);
@@ -1188,8 +1186,9 @@ public:
           OverrideInputSize = 10;
         else
           hlsl_test::LogWarningFmt(
-            L"RITP is enabled but InputSize is also set. Will use the"
-            L"InputSize value: %d.", OverrideInputSize);
+              L"RITP is enabled but InputSize is also set. Will use the"
+              L"InputSize value: %d.",
+              OverrideInputSize);
       }
 
       // Only skip unsupported tests for RITP runs.
