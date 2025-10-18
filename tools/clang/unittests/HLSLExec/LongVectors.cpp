@@ -112,8 +112,6 @@ static const std::unordered_set<OpType> LoadAndStoreOpTypes = {
     OpType::LoadAndStore_RDH_BAB_UAV, OpType::LoadAndStore_RDH_BAB_SRV,
     OpType::LoadAndStore_DT_BAB_UAV,  OpType::LoadAndStore_DT_BAB_SRV,
     OpType::LoadAndStore_RD_BAB_UAV,  OpType::LoadAndStore_RD_BAB_SRV,
-    OpType::LoadAndStore_DT_UAV,      OpType::LoadAndStore_DT_SRV,
-    OpType::LoadAndStore_RD_UAV,      OpType::LoadAndStore_RD_SRV,
     OpType::LoadAndStore_RDH_SB_UAV,  OpType::LoadAndStore_RDH_SB_SRV,
     OpType::LoadAndStore_DT_SB_UAV,   OpType::LoadAndStore_DT_SB_SRV,
     OpType::LoadAndStore_RD_SB_UAV,   OpType::LoadAndStore_RD_SB_SRV,
@@ -397,7 +395,7 @@ runTest(ID3D12Device *D3DDevice, bool VerboseLogging,
 
   if (LoadAndStoreOpTypes.count(Operation.Type) > 0)
     configureLoadAndStoreShaderOp(Operation, OpDataType, Inputs[0].size(),
-                                  ShaderOpSet);
+                                  sizeof(T), ShaderOpSet);
 
   // RunShaderOpTest is a helper function that handles resource creation
   // and setup. It also handles the shader compilation and execution. It takes
@@ -453,35 +451,60 @@ runTest(ID3D12Device *D3DDevice, bool VerboseLogging,
   return OutData;
 }
 
+// LoadAndStore operations dynamically configure sizes on the underlying
+// resources based on the vector size and data type size.
 void configureLoadAndStoreShaderOp(
     const Operation &Operation, const DataType &OpDataType, size_t VectorSize,
-    std::shared_ptr<st::ShaderOpSet> &ShaderOpSet) {
+    size_t ElementSize, std::shared_ptr<st::ShaderOpSet> &ShaderOpSet) {
 
-  DXASSERT_NOMSG(LoadAndStoreOps.count(Operation.Type) > 0);
+  DXASSERT_NOMSG(LoadAndStoreOpTypes.count(Operation.Type) > 0);
 
   auto ShaderOp = ShaderOpSet->GetShaderOp(Operation.ShaderName);
   DXASSERT(ShaderOp, "Invalid ShaderOp name");
 
-  // DXGI_FORMAT_R32_TYPELESS is used for all load/store resources.
-  const float ElementSizeFactor = OpDataType.HLSLSizeInBytes / 4.0f;
+  // When using DXGI_FORMAT_R32_TYPELESS, we need to compute the number of
+  // 32-bit elements required to hold the vector.
   const UINT Num32BitElements =
-      static_cast<UINT>(std::ceil(VectorSize * ElementSizeFactor));
+      static_cast<UINT>(std::ceil(VectorSize * (OpDataType.HLSLSizeInBytes / 4.0f)));
+
+  auto ComputeNumElements = [&](DXGI_FORMAT Format) -> UINT {
+    switch (Format) {
+    case DXGI_FORMAT_R32_TYPELESS:
+      return Num32BitElements;
+    case DXGI_FORMAT_UNKNOWN:
+      return static_cast<UINT>(VectorSize);
+    default:
+      // Unexpected. LoadAndStore ops should only be using these two formats.
+      DXASSERT_NOMSG(false);
+      return 0;
+    }
+  };
+
+  auto ComputeWidth = [&](DXGI_FORMAT Format) -> UINT {
+    switch (Format) {
+    case DXGI_FORMAT_R32_TYPELESS:
+      return Num32BitElements * 4;
+    case DXGI_FORMAT_UNKNOWN:
+      return static_cast<UINT>(VectorSize * ElementSize);
+    default:
+      // Unexpected. LoadAndStore ops should only be using these two formats.
+      DXASSERT_NOMSG(false);
+      return 0;
+    }
+  };
 
   if (!ShaderOp->DescriptorHeaps.empty()) {
     DXASSERT_NOMSG(ShaderOp->DescriptorHeaps.size() == 1);
-    for (auto &R : ShaderOp->DescriptorHeaps[0].Descriptors) {
-      if (_stricmp(R.Kind, "UAV") == 0)
-        R.UavDesc.Buffer.NumElements = Num32BitElements;
-      else if (_stricmp(R.Kind, "SRV") == 0)
-        R.SrvDesc.Buffer.NumElements = Num32BitElements;
+    for (auto &D : ShaderOp->DescriptorHeaps[0].Descriptors) {
+      if (_stricmp(D.Kind, "UAV") == 0)
+        D.UavDesc.Buffer.NumElements = ComputeNumElements(D.UavDesc.Format);
+      else if (_stricmp(D.Kind, "SRV") == 0)
+        D.SrvDesc.Buffer.NumElements = ComputeNumElements(D.SrvDesc.Format);
     }
   }
 
   for (auto &R : ShaderOp->Resources)
-    R.Desc.Width = Num32BitElements * 4; // 4 bytes per 32 bit element
-
-  hlsl_test::LogCommentFmt(
-      L"Configured Load/Store Op with Num32BitElements: %u", Num32BitElements);
+    R.Desc.Width = ComputeWidth(R.Desc.Format);
 }
 
 template <typename T>
@@ -1099,12 +1122,15 @@ template <typename T> struct ExpectedBuilder<OpType::ShuffleVector, T> {
 //
 // Loading and Storing of buffers
 //
-
+//#define CAST_OP(OP, TYPE, IMPL)                                                
+//  template <typename T> struct Op<OP, T, 1> : StrictValidation {               
+//    TYPE operator()(T A) { return IMPL; }                                      
+//  };
 // TODO: Should swap these and initialize to strict validation
 DEFAULT_OP_1(OpType::LoadAndStore_RDH_BAB_UAV, (A));
 DEFAULT_OP_1(OpType::LoadAndStore_RDH_BAB_SRV, (A));
 DEFAULT_OP_1(OpType::LoadAndStore_DT_BAB_UAV, (A));
-DEFAULT_OP_1(OpType::LoadAndStore_DT_BAB_SRV(A));
+DEFAULT_OP_1(OpType::LoadAndStore_DT_BAB_SRV, (A));
 DEFAULT_OP_1(OpType::LoadAndStore_RD_BAB_UAV, (A));
 DEFAULT_OP_1(OpType::LoadAndStore_RD_BAB_SRV, (A));
 DEFAULT_OP_1(OpType::LoadAndStore_RDH_SB_UAV, (A));
@@ -1808,7 +1834,7 @@ public:
   HLK_TEST(LoadAndStore_RDH_BAB_SRV, int32_t);
   HLK_TEST(LoadAndStore_RDH_BAB_UAV, int32_t);
   HLK_TEST(LoadAndStore_DT_BAB_SRV, int32_t);
-  HLK_TEST(LoadAndStore_DT_UAV, int32_t);
+  HLK_TEST(LoadAndStore_DT_BAB_UAV, int32_t);
   HLK_TEST(LoadAndStore_RD_BAB_SRV, int32_t);
   HLK_TEST(LoadAndStore_RD_BAB_UAV, int32_t);
   HLK_TEST(LoadAndStore_RDH_SB_SRV, int32_t);
@@ -1847,7 +1873,7 @@ public:
   HLK_TEST(LoadAndStore_RDH_BAB_UAV, uint32_t);
   HLK_TEST(LoadAndStore_RDH_BAB_SRV, uint32_t);
   HLK_TEST(LoadAndStore_DT_BAB_UAV, uint32_t);
-  HLK_TEST(LoadAndStore_DT_BAB_BAB_SRV, uint32_t);
+  HLK_TEST(LoadAndStore_DT_BAB_SRV, uint32_t);
   HLK_TEST(LoadAndStore_RD_BAB_UAV, uint32_t);
   HLK_TEST(LoadAndStore_RD_BAB_SRV, uint32_t);
   HLK_TEST(LoadAndStore_RDH_SB_UAV, uint32_t);
@@ -1860,7 +1886,7 @@ public:
   HLK_TEST(LoadAndStore_RDH_BAB_UAV, uint64_t);
   HLK_TEST(LoadAndStore_RDH_BAB_SRV, uint64_t);
   HLK_TEST(LoadAndStore_DT_BAB_UAV, uint64_t);
-  HLK_TEST(LoadAndStore_DT_BAB_BAB_SRV uint64_t);
+  HLK_TEST(LoadAndStore_DT_BAB_SRV, uint64_t);
   HLK_TEST(LoadAndStore_RD_BAB_UAV, uint64_t);
   HLK_TEST(LoadAndStore_RD_BAB_SRV, uint64_t);
   HLK_TEST(LoadAndStore_RDH_SB_UAV, uint64_t);
@@ -1885,7 +1911,7 @@ public:
 
   HLK_TEST(LoadAndStore_RDH_BAB_SRV, double);
   HLK_TEST(LoadAndStore_RDH_BAB_UAV, double);
-  HLK_TEST(LoadAndStore_DT_BAB_SRV double);
+  HLK_TEST(LoadAndStore_DT_BAB_SRV, double);
   HLK_TEST(LoadAndStore_DT_BAB_UAV, double);
   HLK_TEST(LoadAndStore_RD_BAB_SRV, double);
   HLK_TEST(LoadAndStore_RD_BAB_UAV, double);
